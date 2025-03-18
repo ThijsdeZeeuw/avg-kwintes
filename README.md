@@ -25,7 +25,7 @@ A comprehensive self-hosted AI stack designed for VPS deployment, featuring n8n,
 
 ## Installation
 
-1. Connect to your VPS via SSH:
+1. Connect to your VPS via SSH: 
 ```bash
 ssh root@your-vps-ip
 ```
@@ -40,7 +40,7 @@ sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip do
 sudo ufw enable
 sudo ufw allow 8000  # n8n
 sudo ufw allow 3001  # Flowise
-sudo ufw allow 3000  # Web UI
+sudo ufw allow 3000  # Web UI & Grafana
 sudo ufw allow 5678  # n8n webhook
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
@@ -48,7 +48,7 @@ sudo ufw allow 8080  # SearXNG (if needed)
 sudo ufw allow 11434 # Ollama
 sudo ufw allow 6333  # Qdrant
 sudo ufw allow 9090  # Prometheus
-sudo ufw allow 3000  # Grafana
+sudo ufw allow 54321 # Supabase Studio
 sudo ufw reload
 ```
 
@@ -107,6 +107,7 @@ After installation, you can access the following services:
 - Web UI: https://openwebui.kwintes.cloud
 - Flowise: https://flowise.kwintes.cloud
 - Supabase: https://supabase.kwintes.cloud
+- Supabase Studio: http://localhost:54321 or https://studio.supabase.kwintes.cloud
 - Grafana: https://grafana.kwintes.cloud
 - Prometheus: https://prometheus.kwintes.cloud
 - Whisper API: https://whisper.kwintes.cloud
