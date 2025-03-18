@@ -33,7 +33,8 @@ def save_secrets_to_file(env_vars):
         'ANON_KEY',
         'SERVICE_ROLE_KEY',
         'DASHBOARD_PASSWORD',
-        'GRAFANA_ADMIN_PASSWORD'
+        'FLOWISE_PASSWORD',
+        'GRAFANA_ADMIN_PASS'
     ]
     
     with open(secrets_file, 'w') as f:
@@ -45,15 +46,18 @@ def save_secrets_to_file(env_vars):
                 f.write(f"{key}={env_vars[key]}\n")
         
         f.write("\n=== Service URLs ===\n")
-        f.write(f"n8n: https://{env_vars.get('N8N_HOSTNAME', 'n8n.kwintes.cloud')}\n")
-        f.write(f"Supabase: https://{env_vars.get('SUPABASE_HOSTNAME', 'supabase.kwintes.cloud')}\n")
-        f.write(f"Grafana: https://grafana.kwintes.cloud\n")
-        f.write(f"Prometheus: https://prometheus.kwintes.cloud\n")
-        f.write(f"Whisper API: https://whisper.kwintes.cloud\n")
-        f.write(f"Qdrant API: https://qdrant.kwintes.cloud\n")
+        domain = env_vars.get('DOMAIN_NAME', 'kwintes.cloud')
+        f.write(f"n8n: https://{env_vars.get('N8N_HOSTNAME', f'n8n.{domain}')}\n")
+        f.write(f"Supabase: https://{env_vars.get('SUPABASE_HOSTNAME', f'supabase.{domain}')}\n")
+        f.write(f"Flowise: https://{env_vars.get('FLOWISE_HOSTNAME', f'flowise.{domain}')}\n")
+        f.write(f"Grafana: https://grafana.{domain}\n")
+        f.write(f"Prometheus: https://prometheus.{domain}\n")
+        f.write(f"Whisper API: https://whisper.{domain}\n")
+        f.write(f"Qdrant API: https://qdrant.{domain}\n")
         
         f.write("\n=== Default Credentials ===\n")
-        f.write(f"Grafana Admin: admin / {env_vars.get('GRAFANA_ADMIN_PASSWORD', 'admin')}\n")
+        f.write(f"Grafana: {env_vars.get('GRAFANA_ADMIN_USER', 'admin')} / {env_vars.get('GRAFANA_ADMIN_PASS', '')}\n")
+        f.write(f"Flowise: {env_vars.get('FLOWISE_USERNAME', 'admin')} / {env_vars.get('FLOWISE_PASSWORD', '')}\n")
         f.write(f"Supabase Dashboard: {env_vars.get('DASHBOARD_USERNAME', 'supabase')} / {env_vars.get('DASHBOARD_PASSWORD', '')}\n")
     
     print(f"\nSecrets have been saved to {secrets_file}")
@@ -112,7 +116,9 @@ def create_interactive_env():
         # n8n Configuration
         'N8N_ENCRYPTION_KEY': generate_random_string(32),
         'N8N_USER_MANAGEMENT_JWT_SECRET': generate_random_string(32),
-        'N8N_HOSTNAME': 'n8n.kwintes.cloud',
+        
+        # n8n domain settings
+        'N8N_HOST': 'n8n.kwintes.cloud',
         'N8N_PROTOCOL': 'https',
         'N8N_PORT': '8000',
         'N8N_EDITOR_BASE_URL': 'https://n8n.kwintes.cloud',
@@ -129,11 +135,23 @@ def create_interactive_env():
         'POSTGRES_DB': 'postgres',
         'POSTGRES_PORT': '5432',
         
-        # Domain Configuration
+        # URL Settings
+        'DOMAIN_NAME': 'kwintes.cloud',
+        'SUBDOMAIN': 'n8n',
+        'N8N_HOSTNAME': 'n8n.kwintes.cloud',
         'WEBUI_HOSTNAME': 'openwebui.kwintes.cloud',
         'FLOWISE_HOSTNAME': 'flowise.kwintes.cloud',
         'SUPABASE_HOSTNAME': 'supabase.kwintes.cloud',
-        'LETSENCRYPT_EMAIL': 'info@gmail.com',
+        'OLLAMA_HOSTNAME': 'ollama.kwintes.cloud',
+        'SEARXNG_HOSTNAME': 'searxng.kwintes.cloud',
+        'LETSENCRYPT_EMAIL': 'admin@kwintes.cloud',
+        
+        # Flowise Configuration
+        'FLOWISE_USERNAME': 'admin',
+        'FLOWISE_PASSWORD': generate_random_string(12),
+        'ENABLE_METRICS': 'true',
+        'METRICS_PROVIDER': 'prometheus',
+        'METRICS_INCLUDE_NODE_METRICS': 'true',
         
         # Qdrant Configuration
         'QDRANT_HOST': 'qdrant',
@@ -142,7 +160,14 @@ def create_interactive_env():
         # Monitoring Configuration
         'PROMETHEUS_PORT': '9090',
         'GRAFANA_PORT': '3000',
-        'GRAFANA_ADMIN_PASSWORD': generate_random_string(16),
+        'GRAFANA_ADMIN_USER': 'admin',
+        'GRAFANA_ADMIN_PASS': generate_random_string(16),
+        'DATA_FOLDER': './data',
+        
+        # System Configuration
+        'TZ': 'Germany/Berlin',
+        'LANG': 'en_US.UTF-8',
+        'LC_ALL': 'en_US.UTF-8',
         
         # Whisper Configuration
         'WHISPER_MODEL': 'base',
@@ -156,10 +181,17 @@ def create_interactive_env():
     print("\nPlease enter the following values (press Enter to use defaults):")
     
     critical_vars = [
+        'DOMAIN_NAME',
+        'SUBDOMAIN',
+        'N8N_HOST',
         'N8N_HOSTNAME',
         'SUPABASE_HOSTNAME',
         'LETSENCRYPT_EMAIL',
-        'GRAFANA_ADMIN_PASSWORD',
+        'FLOWISE_USERNAME',
+        'FLOWISE_PASSWORD',
+        'GRAFANA_ADMIN_USER',
+        'GRAFANA_ADMIN_PASS',
+        'TZ',
         'DASHBOARD_PASSWORD'
     ]
     
@@ -253,28 +285,89 @@ def prepare_supabase_env():
     shutil.copyfile(env_example_path, env_path)
     return True
 
+def check_docker_compose():
+    """Check if 'docker compose' or 'docker-compose' should be used."""
+    # Special handling for Ubuntu 24.04
+    try:
+        # Check if this is Ubuntu 24.04
+        with open('/etc/os-release', 'r') as f:
+            os_info = f.read()
+            if 'VERSION="24.04"' in os_info and 'Ubuntu' in os_info:
+                print("Detected Ubuntu 24.04 - using docker-compose...")
+                # For Ubuntu 24.04, directly use docker-compose if it exists
+                if os.path.exists('/usr/local/bin/docker-compose'):
+                    return ['/usr/local/bin/docker-compose']
+                elif subprocess.run(["which", "docker-compose"], capture_output=True, text=True).returncode == 0:
+                    return ["docker-compose"]
+                else:
+                    # Try to install docker-compose automatically
+                    try:
+                        print("Attempting to install docker-compose...")
+                        install_cmd = [
+                            "curl", "-L", 
+                            "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64", 
+                            "-o", "/usr/local/bin/docker-compose"
+                        ]
+                        subprocess.run(install_cmd, check=True)
+                        subprocess.run(["chmod", "+x", "/usr/local/bin/docker-compose"], check=True)
+                        print("Successfully installed docker-compose")
+                        return ["/usr/local/bin/docker-compose"]
+                    except subprocess.CalledProcessError as e:
+                        print(f"Error installing docker-compose: {e}")
+                        print("Please install docker-compose manually")
+                        sys.exit(1)
+    except FileNotFoundError:
+        # Not a Linux system or /etc/os-release doesn't exist
+        pass
+    except Exception as e:
+        print(f"Warning: Error checking OS version: {e}")
+    
+    # Regular detection process for other systems
+    try:
+        # Check if 'docker compose' is available (Docker CLI plugin)
+        subprocess.run(["docker", "compose", "version"], 
+                       capture_output=True, check=True)
+        return ["docker", "compose"]
+    except subprocess.CalledProcessError:
+        # Fall back to 'docker-compose' command
+        try:
+            subprocess.run(["docker-compose", "--version"], 
+                           capture_output=True, check=True)
+            return ["docker-compose"]
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("Error: Neither 'docker compose' nor 'docker-compose' is available.")
+            print("Please install Docker Compose: https://docs.docker.com/compose/install/")
+            sys.exit(1)
+
 def stop_existing_containers():
     """Stop and remove existing containers for our unified project ('localai')."""
     print("Stopping and removing existing containers for the unified project 'localai'...")
-    run_command([
-        "docker", "compose",
+    docker_compose_cmd = check_docker_compose()
+    cmd = docker_compose_cmd + [
         "-p", "localai",
         "-f", "docker-compose.yml",
         "-f", "supabase/docker/docker-compose.yml",
         "down"
-    ])
+    ]
+    run_command(cmd)
 
 def start_supabase():
     """Start the Supabase services (using its compose file)."""
     print("Starting Supabase services...")
-    run_command([
-        "docker", "compose", "-p", "localai", "-f", "supabase/docker/docker-compose.yml", "up", "-d"
-    ])
+    docker_compose_cmd = check_docker_compose()
+    cmd = docker_compose_cmd + [
+        "-p", "localai", 
+        "-f", "supabase/docker/docker-compose.yml", 
+        "up", "-d"
+    ]
+    run_command(cmd)
 
 def start_local_ai(profile=None):
     """Start the local AI services (using its compose file)."""
     print("Starting local AI services...")
-    cmd = ["docker", "compose", "-p", "localai"]
+    docker_compose_cmd = check_docker_compose()
+    cmd = docker_compose_cmd.copy()
+    cmd.extend(["-p", "localai"])
     if profile and profile != "none":
         cmd.extend(["--profile", profile])
     cmd.extend(["-f", "docker-compose.yml", "up", "-d"])

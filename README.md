@@ -21,7 +21,12 @@ A comprehensive self-hosted AI stack designed for VPS deployment, featuring n8n,
 - Domain name with DNS access
 - Minimum 16GB RAM recommended
 - 100GB+ storage recommended
-- Docker and Docker Compose installed
+- Docker installed (version 20.10.0 or later recommended)
+- Docker Compose installed:
+  - Either Docker Compose plugin (`docker compose`) 
+  - Or standalone Docker Compose binary (`docker-compose`)
+
+> **Note:** The setup script will automatically detect whether to use `docker compose` or `docker-compose` based on what's available on your system.
 
 ## Installation
 
@@ -148,17 +153,39 @@ python3 start_services.py --profile cpu
 
 ## Troubleshooting
 
-1. Check service logs:
+1. **Docker Compose Issues**
+   
+   If you encounter errors with Docker Compose commands like:
+   ```
+   unknown shorthand flag: 'p' in -p
+   ```
+   This indicates incompatibility between the command format and your Docker Compose version.
+   
+   **Solution:** The script now automatically detects and uses the correct Docker Compose command format for your system. If you're manually running commands, use:
+   - For Docker Compose plugin: `docker compose -p localai ...` 
+   - For standalone binary: `docker-compose -p localai ...`
+   
+   If neither works, install the standalone Docker Compose binary:
+   ```bash
+   sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+2. Check service logs:
 ```bash
 docker compose -p localai logs -f [service_name]
+# or
+docker-compose -p localai logs -f [service_name]
 ```
 
-2. Verify service status:
+3. Verify service status:
 ```bash
 docker compose -p localai ps
+# or
+docker-compose -p localai ps
 ```
 
-3. Check monitoring:
+4. Check monitoring:
 - Visit Grafana dashboard
 - Check Prometheus targets
 - Review service health endpoints

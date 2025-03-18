@@ -14,12 +14,22 @@
 3. Domain Information
    - Current domain: kwintes.cloud
 
+4. Required Software
+   - Docker (version 20.10.0 or later recommended)
+   - Docker Compose (either built-in plugin or standalone binary)
+   - Git
+   - Python 3
+
 ## Server Setup Steps
 
 ### 1. Initial Server Setup
 ```bash
 # Update system and install required packages
-sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip docker-compose
+sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip
+
+# Install Docker Compose (standalone version if the docker compose plugin isn't available)
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 
 # Install additional required packages
 sudo apt install -y ffmpeg portaudio19-dev python3-pyaudio
@@ -56,18 +66,32 @@ python3 start_services.py --use-example
 
 # The script will create a copy of .env.example as .env and prompt you to edit it
 # Make sure to update the following values in the .env file:
-# 1. N8N_ENCRYPTION_KEY and N8N_USER_MANAGEMENT_JWT_SECRET with secure random strings
-# 2. All Supabase configuration values:
-#    - POSTGRES_PASSWORD
-#    - JWT_SECRET (at least 32 characters long)
-#    - ANON_KEY 
-#    - SERVICE_ROLE_KEY
-#    - DASHBOARD_USERNAME and DASHBOARD_PASSWORD
-# 3. Set your domain in *_HOSTNAME variables (especially SUPABASE_HOSTNAME)
-# 4. Update LETSENCRYPT_EMAIL with your email address
+
+# Core Configuration
+# - DOMAIN_NAME: Your main domain (e.g., kwintes.cloud)
+# - SUBDOMAIN: Subdomain for n8n (e.g., n8n)
+# - N8N_HOST: Hostname for n8n (e.g., n8n.kwintes.cloud)
+# - LETSENCRYPT_EMAIL: Your email for Let's Encrypt certificates
+
+# Authentication
+# - N8N_ENCRYPTION_KEY and N8N_USER_MANAGEMENT_JWT_SECRET: Secure random strings
+# - FLOWISE_USERNAME and FLOWISE_PASSWORD: Credentials for Flowise
+# - GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASS: Credentials for Grafana
+# - DASHBOARD_USERNAME and DASHBOARD_PASSWORD: Credentials for Supabase
+
+# Supabase Configuration
+# - POSTGRES_PASSWORD: Secure password for PostgreSQL
+# - JWT_SECRET: JWT secret for Supabase (at least 32 characters)
+# - ANON_KEY and SERVICE_ROLE_KEY: API keys for Supabase
+
+# System Configuration
+# - TZ: Your timezone (e.g., Germany/Berlin)
+# - DATA_FOLDER: Location for persistent data
 
 # Alternatively, you can run with the --interactive flag to create .env interactively
 # python3 start_services.py --interactive
+
+# For a complete list of all environment variables, see ENV_VARIABLES.md
 ```
 
 ### 5. Start Services
@@ -146,3 +170,33 @@ To connect n8n to external APIs:
 - Python environment is set up for custom scripts and integrations
 - Monitoring is configured with Prometheus and Grafana
 - Supabase provides a complete backend solution with PostgreSQL 
+
+## Troubleshooting
+
+### Docker Compose Issues
+
+If you encounter an error like:
+```
+unknown shorthand flag: 'p' in -p
+```
+
+This indicates your system is using an older or incompatible version of Docker Compose.
+
+**Solutions:**
+
+1. Install the standalone Docker Compose binary:
+```bash
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
+
+2. The updated start_services.py script automatically detects which Docker Compose command to use, so running it again after installing the standalone binary should work.
+
+3. For manual commands, use the appropriate format based on what's installed:
+```bash
+# For Docker Compose plugin:
+docker compose -p localai ...
+
+# For standalone Docker Compose:
+docker-compose -p localai ...
+``` 
