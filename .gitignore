@@ -1,0 +1,12 @@
+.env
+.env.test
+volumes/
+shared/
+supabase/
+searxng/uwsgi.ini
+searxng/settings.yml
+secrets.txt
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/

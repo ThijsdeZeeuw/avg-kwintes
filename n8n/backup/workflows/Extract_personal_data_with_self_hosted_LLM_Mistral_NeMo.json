@@ -1,0 +1,296 @@
+{
+  "name": "Extract personal data with self-hosted LLM Mistral NeMo",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7e67ae65-88aa-4e48-aa63-2d3a4208cf4b",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [
+        440,
+        420
+      ],
+      "webhookId": "3a7b0ea1-47f3-4a94-8ff2-f5e1f3d9dc32",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "options": {
+          "prompt": "Instructions:\n--------------\n{instructions}\n--------------\nCompletion:\n--------------\n{completion}\n--------------\n\nAbove, the Completion did not satisfy the constraints given in the Instructions.\nError:\n--------------\n{error}\n--------------\n\nPlease try again. Please only respond with an answer that satisfies the constraints laid out in the Instructions:"
+        }
+      },
+      "id": "fe1379da-a12e-4051-af91-9d67a7c9a76b",
+      "name": "Auto-fixing Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "position": [
+        740,
+        620
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"name\": {\n      \"type\": \"string\",\n      \"description\": \"First name of the individual\"\n    },\n    \"surname\": {\n      \"type\": \"string\",\n      \"description\": \"Last name (surname) of the individual\"\n    },\n    \"initials\": {\n      \"type\": \"string\",\n      \"description\": \"Initials of the individual, derived from their full name\"\n    },\n    \"commtype\": {\n      \"type\": \"string\",\n      \"enum\": [\"email\", \"phone\", \"other\"],\n      \"description\": \"Preferred method of communication\"\n    },\n    \"email\": {\n      \"type\": \"string\",\n      \"format\": \"email\",\n      \"description\": \"Email address, if provided\"\n    },\n    \"phone\": {\n      \"type\": \"string\",\n      \"pattern\": \"^\\\\+?[0-9\\\\-\\\\s]+$\",\n      \"description\": \"Phone number, if provided\"\n    },\n    \"address\": {\n      \"type\": \"string\",\n      \"description\": \"Physical address, if applicable\"\n    },\n    \"other_contact\": {\n      \"type\": \"string\",\n      \"description\": \"Other contact details (e.g., social media, messaging apps) if applicable\"\n    },\n    \"timestamp\": {\n      \"type\": \"string\",\n      \"format\": \"date-time\",\n      \"description\": \"The date and time when the communication occurred\"\n    },\n    \"subject\": {\n      \"type\": \"string\",\n      \"description\": \"A brief summary of the communication topic\"\n    }\n  },\n  \"required\": [\"name\", \"surname\", \"commtype\"]\n}\n"
+      },
+      "id": "b6633b00-6ebb-43ca-8e5c-664a53548c17",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "position": [
+        1000,
+        800
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=Please analyse the incoming user request. Extract information according to the JSON schema. Today is: \"{{ $now.toISO() }}\""
+            }
+          ]
+        }
+      },
+      "id": "23681a6c-cf62-48cb-86ee-08d5ce39bc0a",
+      "name": "Basic LLM Chain",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "position": [
+        700,
+        420
+      ],
+      "typeVersion": 1.5,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "id": "8f4d1b4b-58c0-41ec-9636-ac555e440821",
+      "name": "On Error",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        1140,
+        540
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Update data source\nWhen you change the data source, remember to update the `Prompt Source (User Message)` setting in the **Basic LLM Chain node**.",
+        "height": 500,
+        "width": 960,
+        "color": 2
+      },
+      "id": "f4d77736-4470-48b4-8f61-149e09b70e3e",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        240
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Configure local LLM\nOllama offers additional settings \nto optimize model performance\nor memory usage.",
+        "height": 220,
+        "width": 440,
+        "color": 2
+      },
+      "id": "5fd273c8-e61d-452b-8eac-8ac4b7fff6c2",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        740
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Define JSON Schema",
+        "height": 220,
+        "width": 400,
+        "color": 2
+      },
+      "id": "63cbf762-0134-48da-a6cd-0363e870decd",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        940,
+        740
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.output }}\n",
+        "options": {}
+      },
+      "id": "9625294f-3cb4-4465-9dae-9976e0cf5053",
+      "name": "Extract JSON Output",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1140,
+        320
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "content": "If the LLM response does not pass \nthe **Structured Output Parser** checks,\n**Auto-Fixer** will call the model again with a different \nprompt to correct the original response.",
+        "height": 120,
+        "width": 960
+      },
+      "id": "2c6fba3b-0ffe-4112-b904-823f52cc220b",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        600
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "The same LLM connects to both **Basic LLM Chain** and to the **Auto-fixing Output Parser**. \n",
+        "height": 80
+      },
+      "id": "c73ba1ca-d727-4904-a5fd-01dd921a4738",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        380,
+        860
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "When the LLM model responds, the output is checked in the **Structured Output Parser**",
+        "height": 100,
+        "width": 200
+      },
+      "id": "193dd153-8511-4326-aaae-47b89d0cd049",
+      "name": "Sticky Note7",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1140,
+        840
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "mistral-nemo:12b",
+          "mode": "list",
+          "cachedResultName": "mistral-nemo:12b"
+        },
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        860
+      ],
+      "id": "48edfafa-2159-4b96-b76b-f161cd3c779a",
+      "name": "Ollama (Change Base URL)2",
+      "credentials": {
+        "openAiApi": {
+          "id": "R8WdbQZ1kaeqKXH6",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Extract JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "On Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama (Change Base URL)2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "744095c5-601a-4486-8ee4-5a6f8c38dfdf",
+  "meta": {
+    "templateId": "2766",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6a354dafde512010e3620d9066cb22d17c29de69f2f4475b6e4bbe7d1ac9554"
+  },
+  "id": "RRcATBfubQAB1Shv",
+  "tags": []
+}

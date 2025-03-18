@@ -1,0 +1,202 @@
+# Local AI Stack Setup Guide
+# Created for Kwintes FA & 
+# Includes: n8n, Ollama, Qdrant, Prometheus, Grafana, Whisper, and Python
+
+## Prerequisites
+1. Install PuTTY (for Windows users)
+   - Download from: https://www.putty.org/
+
+2. Server Access Information
+   - IP: 46.202.155.155
+   - Username: root
+   - Password: [Your server password]
+
+3. Domain Information
+   - Current domain: kwintes.cloud
+
+## Server Setup Steps
+
+### 1. Initial Server Setup
+```bash
+# Update system and install required packages
+sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip docker-compose
+
+# Install additional required packages
+sudo apt install -y ffmpeg portaudio19-dev python3-pyaudio
+```
+
+### 2. Configure Firewall
+```bash
+# Enable and configure firewall
+sudo ufw enable
+sudo ufw allow 8000  # n8n
+sudo ufw allow 3001  # Flowise
+sudo ufw allow 3000  # Web UI
+sudo ufw allow 5678  # n8n webhook
+sudo ufw allow 80    # HTTP
+sudo ufw allow 443   # HTTPS
+sudo ufw allow 8080  # SearXNG (if needed)
+sudo ufw allow 11434 # Ollama
+sudo ufw allow 6333  # Qdrant
+sudo ufw allow 9090  # Prometheus
+sudo ufw allow 3000  # Grafana
+sudo ufw reload
+```
+
+### 3. Clone Repository
+```bash
+git clone https://github.com/coleam00/local-ai-packaged.git
+cd local-ai-packaged
+```
+
+### 4. Interactive Environment Setup
+```bash
+# Create a new .env file interactively
+cat > .env << 'EOL'
+# n8n Configuration
+N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)
+N8N_USER_MANAGEMENT_JWT_SECRET=$(openssl rand -hex 32)
+N8N_HOSTNAME=n8n.kwintes.cloud
+N8N_PROTOCOL=https
+N8N_PORT=8000
+N8N_EDITOR_BASE_URL=https://n8n.kwintes.cloud
+
+# Supabase Configuration
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+JWT_SECRET=$(openssl rand -hex 32)
+ANON_KEY=$(openssl rand -hex 32)
+SERVICE_ROLE_KEY=$(openssl rand -hex 32)
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=$(openssl rand -hex 16)
+POOLER_TENANT_ID=1001
+
+# Domain Configuration
+WEBUI_HOSTNAME=openwebui.kwintes.cloud
+FLOWISE_HOSTNAME=flowise.kwintes.cloud
+SUPABASE_HOSTNAME=supabase.kwintes.cloud
+LETSENCRYPT_EMAIL=tddezeeuw@gmail.com
+
+# Qdrant Configuration
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+
+# Monitoring Configuration
+PROMETHEUS_PORT=9090
+GRAFANA_PORT=3000
+
+# Whisper Configuration
+WHISPER_MODEL=base
+WHISPER_DEVICE=cpu
+
+# Python Configuration
+PYTHON_PATH=/usr/bin/python3
+EOL
+```
+
+### 5. Install Additional Services
+
+#### Install Qdrant
+```bash
+docker run -d \
+  --name qdrant \
+  -p 6333:6333 \
+  -v $(pwd)/qdrant_data:/qdrant/storage \
+  qdrant/qdrant
+```
+
+#### Install Prometheus and Grafana
+```bash
+# Create Prometheus configuration
+cat > prometheus.yml << 'EOL'
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n:8000']
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6333']
+EOL
+
+# Start Prometheus
+docker run -d \
+  --name prometheus \
+  -p 9090:9090 \
+  -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml \
+  prom/prometheus
+
+# Start Grafana
+docker run -d \
+  --name grafana \
+  -p 3000:3000 \
+  -v $(pwd)/grafana_data:/var/lib/grafana \
+  grafana/grafana
+```
+
+### 6. Install Whisper and Python Dependencies
+```bash
+# Install Whisper
+pip3 install openai-whisper
+
+# Install additional Python packages
+pip3 install pyaudio numpy pandas scikit-learn
+```
+
+### 7. Start Services
+```bash
+# Start all services
+python3 start_services.py --profile cpu
+```
+
+### 8. Verify Installation
+```bash
+# Check running containers
+docker ps
+
+# Verify services are accessible
+curl http://localhost:8000/healthz  # n8n
+curl http://localhost:6333/healthz  # Qdrant
+curl http://localhost:9090/-/healthy  # Prometheus
+```
+
+## Accessing Services
+
+1. n8n: https://n8n.kwintes.cloud
+2. Web UI: https://openwebui.kwintes.cloud
+3. Flowise: https://flowise.kwintes.cloud
+4. Supabase: https://supabase.kwintes.cloud
+5. Grafana: https://grafana.kwintes.cloud
+6. Prometheus: https://prometheus.kwintes.cloud
+
+## External API Integration
+
+To connect n8n to external APIs:
+
+1. Access n8n at https://n8n.kwintes.cloud
+2. Go to Settings > Credentials
+3. Add your API credentials
+4. Use the credentials in your workflows
+
+## Monitoring Setup
+
+1. Access Grafana at https://grafana.kwintes.cloud
+   - Default credentials: admin/admin
+   - Add Prometheus as a data source (URL: http://prometheus:9090)
+
+2. Access Prometheus at https://prometheus.kwintes.cloud
+   - View metrics and create alerts
+
+## Notes
+
+- All services are configured to use HTTPS through Caddy
+- Ollama runs locally for AI processing
+- Qdrant is available for vector storage
+- Whisper is configured for local speech-to-text processing
+- Python environment is set up for custom scripts and integrations
+- Monitoring is configured with Prometheus and Grafana 

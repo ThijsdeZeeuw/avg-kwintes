@@ -1,0 +1,284 @@
+volumes:
+  n8n_storage:
+  ollama_storage:
+  qdrant_storage:
+  open-webui:
+  flowise:
+  caddy-data:
+  caddy-config:
+  valkey-data:
+  prometheus_data:
+  grafana_data:
+  whisper_data:
+
+x-n8n: &service-n8n
+  image: n8nio/n8n:latest
+  environment:
+    - DB_TYPE=postgresdb
+    - DB_POSTGRESDB_HOST=db
+    - DB_POSTGRESDB_USER=postgres
+    - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+    - DB_POSTGRESDB_DATABASE=postgres
+    - N8N_DIAGNOSTICS_ENABLED=false
+    - N8N_PERSONALIZATION_ENABLED=false
+    - N8N_ENCRYPTION_KEY
+    - N8N_USER_MANAGEMENT_JWT_SECRET
+    - N8N_HOST=${N8N_HOSTNAME}
+    - N8N_PROTOCOL=${N8N_PROTOCOL}
+    - N8N_PORT=${N8N_PORT}
+    - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
+    - N8N_METRICS_ENABLED=true
+    - N8N_METRICS_PORT=9090
+
+x-ollama: &service-ollama
+  image: ollama/ollama:latest
+  container_name: ollama
+  restart: unless-stopped
+  ports:
+    - 11434:11434
+  volumes:
+    - ollama_storage:/root/.ollama
+
+x-init-ollama: &init-ollama
+  image: ollama/ollama:latest
+  container_name: ollama-pull-llama
+  volumes:
+    - ollama_storage:/root/.ollama
+  entrypoint: /bin/sh
+  command:
+    - "-c"
+    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull gemma3:12b; OLLAMA_HOST=ollama:11434 ollama pull granite-embedding:278m; OLLAMA_HOST=ollama:11434 ollama pull granite3-guardian:8b; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-dense:latest; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-moe:3b; OLLAMA_HOST=ollama:11434 ollama pull granite3.2:latest; OLLAMA_HOST=ollama:11434 ollama pull jeffh/intfloat-multilingual-e5-large-instruct:f16; OLLAMA_HOST=ollama:11434 ollama pull llama3.2-vision; OLLAMA_HOST=ollama:11434 ollama pull minicpm-v:8b; OLLAMA_HOST=ollama:11434 ollama pull mistral-nemo:12b; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text:latest; OLLAMA_HOST=ollama:11434 ollama pull qwen2.5:7b-instruct-q4_K_M; OLLAMA_HOST=ollama:11434 ollama pull reader-lm:latest"
+    # For a larger context length verison of the model, run these commands:
+    # echo "FROM qwen2.5:7b-instruct-q4_K_M\n\nPARAMETER num_ctx 8096" > Modelfile
+    # ollama create qwen2.5:7b-8k -f ./Modelfile
+    # Change the name of the LLM and num_ctx as you see fit.
+
+services:
+  flowise:
+    image: flowiseai/flowise
+    restart: unless-stopped
+    container_name: flowise
+    environment:
+        - PORT=3001
+    ports:
+        - 3001:3001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"        
+    volumes:
+        - ~/.flowise:/root/.flowise
+    entrypoint: /bin/sh -c "sleep 3; flowise start"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    container_name: open-webui
+    ports:
+      - "3000:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui:/app/backend/data
+
+  n8n-import:
+    <<: *service-n8n
+    container_name: n8n-import
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
+    volumes:
+      - ./n8n/backup:/backup  
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  whisper:
+    image: openai/whisper:latest
+    container_name: whisper
+    restart: unless-stopped
+    ports:
+      - 9000:9000
+    environment:
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+    volumes:
+      - whisper_data:/app/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  n8n:
+    <<: *service-n8n
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    volumes:
+      - n8n_storage:/home/node/.n8n
+      - ./n8n/backup:/backup
+      - ./shared:/data/shared
+    depends_on:
+      n8n-import:
+        condition: service_completed_successfully
+    networks:
+      - monitoring
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - 6333:6333
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - monitoring
+
+  caddy:
+    container_name: caddy
+    image: docker.io/library/caddy:2-alpine
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data:rw
+      - caddy-config:/config:rw
+    environment:
+      - N8N_HOSTNAME=${N8N_HOSTNAME:-":8001"}
+      - WEBUI_HOSTNAME=${WEBUI_HOSTNAME:-":8002"}
+      - FLOWISE_HOSTNAME=${FLOWISE_HOSTNAME:-":8003"}
+      - OLLAMA_HOSTNAME=${OLLAMA_HOSTNAME:-":8004"}
+      - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-":8005"}
+      - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-":8006"}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-internal}
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  redis:
+    container_name: redis
+    image: docker.io/valkey/valkey:8-alpine
+    command: valkey-server --save 30 1 --loglevel warning
+    restart: unless-stopped
+    volumes:
+      - valkey-data:/data
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  searxng:
+    container_name: searxng
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=https://${SEARXNG_HOSTNAME:-localhost}/
+      - UWSGI_WORKERS=${SEARXNG_UWSGI_WORKERS:-4}
+      - UWSGI_THREADS=${SEARXNG_UWSGI_THREADS:-4}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"      
+
+  ollama-cpu:
+    profiles: ["cpu"]
+    <<: *service-ollama
+
+  ollama-gpu:
+    profiles: ["gpu-nvidia"]
+    <<: *service-ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ollama-gpu-amd:
+    profiles: ["gpu-amd"]
+    <<: *service-ollama
+    image: ollama/ollama:rocm
+    devices:
+      - "/dev/kfd"
+      - "/dev/dri"
+
+  ollama-pull-llama-cpu:
+    profiles: ["cpu"]
+    <<: *init-ollama
+    depends_on:
+      - ollama-cpu
+
+  ollama-pull-llama-gpu:
+    profiles: ["gpu-nvidia"]
+    <<: *init-ollama
+    depends_on:
+      - ollama-gpu
+
+  ollama-pull-llama-gpu-amd:
+    profiles: [gpu-amd]
+    <<: *init-ollama
+    image: ollama/ollama:rocm
+    depends_on:
+     - ollama-gpu-amd
+
+networks:
+  monitoring:
+    driver: bridge
+
+# Created and maintained by Z4Y

@@ -1,0 +1,739 @@
+{
+  "name": "FA RECEIPTS",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true,
+          "imageSize": "extraLarge"
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1120,
+        500
+      ],
+      "id": "45d39a68-6ce2-4af4-906b-625acbe3c4b5",
+      "name": "Telegram Trigger",
+      "webhookId": "6b08dcf6-ec3a-4131-9575-d83de21aaa53",
+      "notesInFlow": false,
+      "credentials": {
+        "telegramApi": {
+          "id": "VNs6GeLz4y9lAkM0",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": 190848,
+        "tableId": 462463,
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "5d1449c6-eb99-44c1-b6f8-410788613a1a",
+      "name": "Baserow (Create Record)",
+      "type": "n8n-nodes-base.baserow",
+      "position": [
+        1580,
+        540
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "baserowApi": {
+          "id": "raprU94OBH1w7jsy",
+          "name": "Baserow account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "=",
+        "text": "poep",
+        "additionalFields": {}
+      },
+      "id": "e795e930-fdbe-4eb0-8be1-307036b6be89",
+      "name": "Send OCR Results to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        1740,
+        540
+      ],
+      "typeVersion": 1.2,
+      "webhookId": "2520f443-6f4c-4a12-af88-06da1118f7bb",
+      "credentials": {
+        "telegramApi": {
+          "id": "VNs6GeLz4y9lAkM0",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": true
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        660
+      ],
+      "id": "2027535f-b36b-44b1-bef9-eb3761840351",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "name": "=",
+        "driveId": {
+          "__rl": true,
+          "value": "1map9T6sl4Tg4zE4ZgHCRRoK7FPoxPrO-",
+          "mode": "id"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1nv8oiycIUGsaRBXHY9Ie2PXngqt4Hfcc",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "1efe6918-5821-4a78-9206-782692177c4b",
+      "name": "Upload File to GDrive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        1200,
+        480
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "tIQG7ZGLrBCHe24O",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "reActAgent",
+        "promptType": "define",
+        "text": "Say something nice",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1240,
+        -400
+      ],
+      "id": "f46b3258-4c88-4059-ad85-d897113d5b3d",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -1240,
+        -260
+      ],
+      "id": "812d112d-392c-41a5-91cf-48319e2e285a",
+      "name": "DeepSeek Chat Model1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.message.photo[3].file_id }}"
+      },
+      "id": "c65582d2-62d8-4dfb-8b82-44aa3ddfc00f",
+      "name": "Receive the File",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        -900,
+        500
+      ],
+      "typeVersion": 1.2,
+      "webhookId": "5cfd9c36-1b0e-4c47-be02-b318f6b671d9",
+      "credentials": {
+        "telegramApi": {
+          "id": "VNs6GeLz4y9lAkM0",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// If multiple files are uploaded, split them into separate items.\n// Each item will have a single `binary.File`.\n\nconst binaryFields = Object.keys(items[0].binary);\nif (binaryFields.length === 0) {\n  return [{ json: { error: 'No file uploaded' } }];\n}\n\nreturn binaryFields.map((key) => {\n  return {\n    json: {},\n    binary: {\n      File: items[0].binary[key]\n    }\n  };\n});"
+      },
+      "id": "f4ed5a28-6074-457a-970f-3b92cf034b94",
+      "name": "Split Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        840
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "binaryPropertyName": "File",
+        "destinationKey": "File",
+        "options": {
+          "encoding": "utf8",
+          "keepSource": "binary"
+        }
+      },
+      "id": "16722e45-5da2-47ff-bfe2-d1f8c9390a4f",
+      "name": "Convert Image to Base",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -840,
+        840
+      ],
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "CostCategory",
+              "value": "={{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2516a485-02c9-4347-aef7-3c3f5e524d09",
+      "name": "Extract Additional Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        -840,
+        -640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "",
+        "imageUrls": "={{ $('No URL - Skip Optimization').item.json.Newurl }}",
+        "options": {}
+      },
+      "id": "cfe7debe-fa2f-4058-8b07-f8f75f5e3a82",
+      "name": "Analyze Image - OCR",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        600,
+        600
+      ],
+      "typeVersion": 1.6,
+      "credentials": {
+        "openAiApi": {
+          "id": "MnKBmPNF0l6k37I5",
+          "name": "OPENAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "AI Agent Description: Automated Finance Cost Category Analysis for Receipt Checker\nPurpose:\n\nThe Automated Finance Cost Category Analysis for Receipt Checker is an AI-powered agent designed to streamline the categorization of financial receipts into predefined cost categories. By examining receipt details—such as items purchased, services rendered, or the purpose of the expense—the agent assigns each receipt to the most appropriate category. This automation enhances accuracy, reduces manual effort, and ensures consistency in financial analysis and reporting.\n\nCapabilities:\n\nDetailed Receipt Parsing: Analyzes receipt content, including text descriptions, itemized lists, and expense purposes, to identify key classification indicators.\nAccurate Category Assignment: Matches receipts to predefined cost categories based on unique numbers, descriptions, and examples of applicable expenses.\nContextual Refinement: Utilizes the \"Account Description\" (when provided) to improve classification precision, particularly for overlapping or ambiguous cases.\nAmbiguity Handling: Resolves cases where a receipt fits multiple categories by prioritizing the primary purpose of the expense.\nFallback Option: Assigns uncategorized receipts to Category 459900: Overige Algemene Kosten to ensure comprehensive classification.\nHow It Works:\n\nReceive Receipt Input: Accepts receipt data in various formats (e.g., scanned text, digital entries) containing details like items, services, or expense purposes.\nExamine Details: Parses the receipt to extract relevant information, such as keywords (e.g., \"team lunch,\" \"office supplies\") or specific items (e.g., \"paper,\" \"coffee\").\nCompare to Categories: Matches the extracted details against the descriptions and examples of each cost category to determine the best fit.\nLeverage Account Description: When available, uses the \"Account Description\" to refine the classification (e.g., distinguishing between general household costs and inventory costs under €1000).\nResolve Ambiguities: If a receipt aligns with multiple categories, selects the category reflecting the expense’s primary purpose (e.g., a team lunch with coffee is classified as Team Costs, not Canteen Costs).\nApply Fallback: If no specific category applies, defaults to Category 459900: Overige Algemene Kosten.\nOutput Result: Provides the assigned category number and description for integration into financial records or reports.\nCost Categories Used:\n\nThe agent operates with the following predefined cost categories:\n\n423900: Team Costs\nExamples: Team building activities, workshops, team lunches, staff morale events.\n423910: Jubilee Costs\nExamples: Costs for celebratory events (jubilees, anniversaries, retirements, milestone achievements).\n423920: Canteen Costs\nExamples: Coffee, tea, snacks, general canteen supplies, disposable utensils or dishware (if applicable).\n441400: Inventory Costs\nExamples: Warehouse inventory such as pans, glasses, bedding, stove fans, lights, batteries, repairs, kitchen utensils, small equipment maintenance.\nAccount Description: Kosten inventaris < €1000.\n441900: Overige Huishoudelijke Kosten\nExamples: Household items like toilet articles, trash bags, band-aids, de-icing salt, cleaning supplies, and others.\nAccount Description: Overige huishoudelijke kosten.\n451100: Kantoorbenodigdheden\nExamples: Office supplies such as paper, writing materials, notebooks, sticky notes, envelopes, printer ink/toner, and others.\nAccount Description: Kantoorbenodigdheden.\n452100: Portikosten\nExamples: Postage costs for packages, letters, shipping supplies, courier services.\nAccount Description: Portikosten.\n453991: Vergaderkosten\nExamples: Meeting costs including room rentals, refreshments, conference call services.\nAccount Description: Vergaderkosten.\n459900: Overige Algemene Kosten\nExamples: Miscellaneous costs not covered by other categories.\nAccount Description: Overige algemene kosten.\n463001: Recreatie/Inloop Kosten\nExamples: Recreational or in-loop costs like group outings or social events.\nAccount Description: Kosten recreatie/inloop.\n464900: Overige Begeleidingskosten\nExamples: Guidance costs such as taxis for clients or other specialized assistance.\nAccount Description: Overige begeleidingskosten.\n467120: Ontspanningsgelden\nExamples: Stress relief costs like shared outings, celebrations, dinners, barbecues, well-being or relaxation programs.\nAccount Description: Ontspanningsgelden.\nAdditional Features:\n\nScalability: Processes single receipts or large batches efficiently, suitable for small businesses or large organizations.\nAdaptability: Can be updated with new categories, examples, or rules to accommodate evolving financial needs.\nUser-Friendly Output: Delivers clear, actionable classifications for seamless integration into accounting software or manual workflows.\nBenefits:\n\nTime Savings: Automates receipt categorization, eliminating tedious manual sorting.\nPrecision: Ensures accurate assignments using predefined rules and contextual analysis.\nReliability: Maintains consistent categorization across all receipts, enhancing financial data integrity.\nVersatility: Adapts to diverse receipt types and expense scenarios with a robust fallback mechanism.\nThis AI agent description provides a comprehensive solution for analyzing financial receipt data, aligning with the user’s requirements for automation, accuracy, and predefined cost category usage. It’s structured to be practical and easily integrated into financial analysis workflows.",
+        "imageUrls": "={{ $('No URL - Skip Optimization').item.json.Newurl }}",
+        "options": {
+          "detail": "auto"
+        }
+      },
+      "id": "0d1effc7-52e9-43ec-a84b-53aac894552a",
+      "name": "Analyze Image - CostCategory",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        300,
+        600
+      ],
+      "typeVersion": 1.6,
+      "credentials": {
+        "openAiApi": {
+          "id": "MnKBmPNF0l6k37I5",
+          "name": "OPENAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mindee.net/v1/products/mindee/expense_receipts/v5/predict",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "cropper",
+              "value": "true"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token 55ea7563eb06fad66261dbf79bf9ef23"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "document",
+              "value": "={{ $json.Newurl }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e50d02b7-3e08-4799-a83a-525a28e179a0",
+      "name": "Send to Mindee",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "MindeeCategory",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.category.value}}"
+            },
+            {
+              "name": "MindeeCategoryConfidence",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.category.confidence}}"
+            },
+            {
+              "name": "finalCost",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.total_amount.value }}"
+            },
+            {
+              "name": "storeName",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.supplier_name.value }}"
+            },
+            {
+              "name": "storeAddress",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.supplier_address.value }}"
+            },
+            {
+              "name": "date",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.date.value }}"
+            },
+            {
+              "name": "time",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.time.value }}"
+            },
+            {
+              "name": "boundingbox",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].extras.cropper.cropping[0].bounding_box }}"
+            },
+            {
+              "name": "Desc",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[0].description }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[1].description }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[2].description }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[3].description }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[4].description }}"
+            },
+            {
+              "name": "Qty",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[0].quantity }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[1].quantity }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[2].quantity }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[3].quantity }}"
+            },
+            {
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[0].total_amount }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[1].total_amount }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[2].total_amount }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[3].total_amount }}\n{{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.line_items[4].total_amount }}"
+            },
+            {
+              "name": "Language",
+              "value": "={{ $('Send to Mindee').item.json.document.inference.pages[0].prediction.locale.value }}"
+            },
+            {
+              "name": "CostCategory",
+              "value": "={{ $('Analyze Image - CostCategory').item.json.content }}"
+            },
+            {
+              "name": "OCR",
+              "value": "={{ $('Analyze Image - OCR').item.json.content }}"
+            },
+            {
+              "name": "File",
+              "value": "={{ $('Convert Image to Base').item.json.File }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95815403-39f0-4fb3-aefe-081a233d2118",
+      "name": "Extract Additional Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        820,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://api.resmush.it/ws.php?img={{ $json.data.url }}",
+        "options": {},
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "User-Agent",
+              "value": "n8nWorkflow/1.0"
+            },
+            {
+              "name": "Referer",
+              "value": "https://example.com"
+            }
+          ]
+        },
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "img",
+              "value": "={{ $json[\"data\"][\"url\"] }}"
+            }
+          ]
+        }
+      },
+      "name": "Optimize Image (reSmush.it)1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        1160
+      ],
+      "id": "55e278ec-c4cb-47b9-b611-5a0c24efe6e1",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.imgbb.com/1/upload",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "expiration",
+              "value": "15552000"
+            },
+            {
+              "name": "key",
+              "value": "083b47be1f08182f8a6d6e3e5da2e1b0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "image",
+              "value": "={{ $json.File }}"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "id": "70422df9-ce2b-425e-a9da-ee26247a1c41",
+      "name": "Upload Img to ImgBB for URL1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -560,
+        1160
+      ],
+      "notesInFlow": true,
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "Newurl",
+              "value": "={{ $json.src }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "No URL - Skip Optimization",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        1160
+      ],
+      "id": "1c29978b-8d42-47aa-a40b-63bceca07a97"
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "File",
+        "options": {
+          "fileName": "={{ $json.date }}{{ $json.time }}{{ $json.storeName }}{{ $json.finalCost }}",
+          "mimeType": "image/jpeg"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        480
+      ],
+      "id": "087e508a-3ec3-44f1-86bc-4ab947f2f190",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1240,
+        700
+      ],
+      "id": "e496d6c9-4c06-4f13-a59d-31c87d08acb7",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Receive the File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baserow (Create Record)": {
+      "main": [
+        [
+          {
+            "node": "Send OCR Results to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File to GDrive": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive the File": {
+      "main": [
+        [
+          {
+            "node": "Split Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files": {
+      "main": [
+        [
+          {
+            "node": "Convert Image to Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Image to Base": {
+      "main": [
+        [
+          {
+            "node": "Upload Img to ImgBB for URL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image - OCR": {
+      "main": [
+        [
+          {
+            "node": "Extract Additional Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image - CostCategory": {
+      "main": [
+        [
+          {
+            "node": "Analyze Image - OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Mindee": {
+      "main": [
+        [
+          {
+            "node": "Analyze Image - CostCategory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Additional Fields": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Optimize Image (reSmush.it)1": {
+      "main": [
+        [
+          {
+            "node": "No URL - Skip Optimization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Img to ImgBB for URL1": {
+      "main": [
+        [
+          {
+            "node": "Optimize Image (reSmush.it)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No URL - Skip Optimization": {
+      "main": [
+        [
+          {
+            "node": "Send to Mindee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Upload File to GDrive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Baserow (Create Record)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a4576c52-483a-407d-98bb-66701b0a8f7e",
+  "meta": {
+    "instanceId": "d6a354dafde512010e3620d9066cb22d17c29de69f2f4475b6e4bbe7d1ac9554"
+  },
+  "id": "4KD5zeXQduUKJJ0f",
+  "tags": []
+}

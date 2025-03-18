@@ -1,0 +1,34 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6333']
+    metrics_path: '/metrics'
+
+  - job_name: 'whisper'
+    static_configs:
+      - targets: ['whisper:9000']
+    metrics_path: '/metrics'
+
+  - job_name: 'ollama'
+    static_configs:
+      - targets: ['ollama:11434']
+    metrics_path: '/metrics'
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+# Created and maintained by Z4Y 

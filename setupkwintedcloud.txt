@@ -1,0 +1,91 @@
+Gemaakt door: Thijs de Zeeuw (Z4Y)
+Inhoud: Server opzet local n8n, ollama, supabase ...
+Voor: Kwintes FA
+
+
+(INSTALL SERVER) 
+#1 INSTALL PuTTY
+https://www.putty.org/
+
+#2 In PuTTY (FOR DEV SERVER - is already set up)
+IP = 46.202.155.155
+username = root
+password = Turkije01###
+
+#3 Current used domain: kwintes.cloud is already set up.
+
+
+#1
+sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip
+
+#2 (#8080 (If deploying SearXNG) do not in deployment setting) #11434 IN WERK ENV NIET VERSTANDIG (If deploying ollama) do not in deployment setting))
+sudo ufw enable
+sudo ufw allow 8000
+sudo ufw allow 3001
+sudo ufw allow 3000
+sudo ufw allow 5678
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw allow 8080
+sudo ufw allow 11434
+sudo ufw reload
+
+#3   
+git clone https://github.com/coleam00/local-ai-packaged.git
+cd local-ai-packaged
+
+#4
+cp .env.example .env
+nano .env
+
+#5
+'''
+# Change the name of this file to .env after updating it!
+############
+# [required]
+# n8n credentials - you set this to whatever you want, just make it a long and secure string for both!
+############
+N8N_ENCRYPTION_KEY=Lfkj3lkjfslSDFSDFSDFSDKFJSdkfjsdlfkjsdlfkj
+N8N_USER_MANAGEMENT_JWT_SECRET=Lksdf897sdfSD89fsd89f7DF8s97d89f7sd89f7sdf
+############
+# [required]
+# Supabase Secrets
+# YOU MUST CHANGE THESE BEFORE GOING INTO PRODUCTION
+# Read these docs for any help: https://supabase.com/docs/guides/self-hosting/docker
+# For the JWT Secret and keys, see: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+# For the other secrets, see: https://supabase.com/docs/guides/self-hosting/docker#update-secrets
+# You can really decide any value for POOLER_TENANT_ID like 1000.
+############
+POSTGRES_PASSWORD=SuperSecretPostgresPassword123!
+JWT_SECRET=ThisIsAVeryLongAndSecretJWTTokenStringWithAtLeast32Chars
+ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36X>
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=admin
+POOLER_TENANT_ID=1001
+############
+# [required for prod]
+# Caddy Config
+# By default listen on https://localhost:[service port] and don't use an email for SSL
+# To change this for production:
+# Uncomment all of these environment variables for the services you want exposed
+# Note that you might not want to expose Ollama or SearXNG since they aren't secured by default
+# Replace the placeholder value with the host for each service (like n8n.yourdomain.com)
+# Replace internal by your email (require to create a Let's Encrypt certificate)
+############
+N8N_HOSTNAME=n8n.kwintes.cloud
+WEBUI_HOSTNAME=openwebui.kwintes.cloud
+FLOWISE_HOSTNAME=flowise.kwintes.cloud
+SUPABASE_HOSTNAME=supabase.kwintes.cloud
+#OLLAMA_HOSTNAME=ollama.kwintes.cloud
+#SEARXNG_HOSTNAME=searxng.kwintes.cloud
+LETSENCRYPT_EMAIL=tddezeeuw@gmail.com
+# Everything below this point is optional.
+# Default values will suffice unless you need more features/customization.
+'''
+#6 
+python3 start_services.py --profile cpu
+
+#7
+docker ps
+
