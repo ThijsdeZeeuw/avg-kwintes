@@ -136,13 +136,13 @@ To update the stack:
 ```bash
 cd local-ai-packaged
 git pull
-python3 start_services.py --interactive
+python3 start_services.py --profile cpu
 ```
 
 To restart services:
 ```bash
 docker compose -p localai down
-python3 start_services.py --interactive
+python3 start_services.py --profile cpu
 ```
 
 ## Troubleshooting
