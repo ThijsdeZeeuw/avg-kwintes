@@ -110,6 +110,29 @@ This will:
 3. Generate secure keys for SearXNG
 4. Start Supabase and the local AI stack
 
+## Connecting n8n to External APIs
+
+For n8n to properly connect to external APIs and receive webhooks, the following environment variables have been added:
+
+```
+WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+GENERIC_TIMEZONE=${TZ}
+NODE_FUNCTION_ALLOW_EXTERNAL=*
+```
+
+These variables will:
+
+1. **WEBHOOK_URL**: Set the base URL for webhooks to reach your n8n instance
+2. **GENERIC_TIMEZONE**: Set the timezone for n8n workflows to match your system
+3. **NODE_FUNCTION_ALLOW_EXTERNAL**: Allow n8n to connect to any external API
+
+If you're experiencing issues connecting to external APIs:
+
+1. Ensure your domain is properly configured with DNS records
+2. Check that your SSL certificates are valid
+3. Verify the SUBDOMAIN and DOMAIN_NAME variables are correctly set in your .env file
+4. Test webhook endpoints using a tool like Postman or Insomnia
+
 ## Troubleshooting
 
 ### Common Issues on Ubuntu 24.04

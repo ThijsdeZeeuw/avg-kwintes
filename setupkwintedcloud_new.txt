@@ -152,6 +152,21 @@ To connect n8n to external APIs:
 3. Add your API credentials
 4. Use the credentials in your workflows
 
+The stack has been pre-configured with these important environment variables that enable external API connections:
+
+```
+WEBHOOK_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+GENERIC_TIMEZONE=${TZ}
+NODE_FUNCTION_ALLOW_EXTERNAL=*
+```
+
+These settings allow n8n to:
+- Receive incoming webhooks from external services
+- Connect to any external API endpoint
+- Use the correct timezone for workflow scheduling
+
+If you experience connection issues, verify your domain is properly configured and the SSL certificates are valid.
+
 ## Monitoring Setup
 
 1. Access Grafana at https://grafana.kwintes.cloud

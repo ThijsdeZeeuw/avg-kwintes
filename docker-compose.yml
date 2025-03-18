@@ -30,6 +30,9 @@ x-n8n: &service-n8n
     - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
     - N8N_METRICS_ENABLED=true
     - N8N_METRICS_PORT=9090
+    - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/
+    - GENERIC_TIMEZONE=${TZ:-Germany/Berlin}
+    - NODE_FUNCTION_ALLOW_EXTERNAL=*
 
 x-ollama: &service-ollama
   image: ollama/ollama:latest

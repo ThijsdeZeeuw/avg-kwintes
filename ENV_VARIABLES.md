@@ -28,6 +28,9 @@ This document describes all the environment variables used in the Local AI Stack
 | `N8N_PROTOCOL` | Protocol for n8n (http/https) | `https` |
 | `N8N_PORT` | Port for n8n | `8000` |
 | `N8N_EDITOR_BASE_URL` | Base URL for n8n editor | `https://n8n.kwintes.cloud` |
+| `WEBHOOK_URL` | URL for external webhooks to reach n8n | `https://n8n.kwintes.cloud/` |
+| `GENERIC_TIMEZONE` | Timezone for n8n workflows | `Germany/Berlin` |
+| `NODE_FUNCTION_ALLOW_EXTERNAL` | Domains/IPs n8n can connect to | `*` (all) |
 
 ### Supabase Configuration
 
