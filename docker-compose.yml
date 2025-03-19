@@ -165,6 +165,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./dashboard:/etc/caddy/dashboard:ro
       - caddy-data:/data:rw
       - caddy-config:/config:rw
     environment:
@@ -176,6 +177,7 @@ services:
       - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-"searxng.${DOMAIN_NAME:-kwintes.cloud}"}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-internal}
       - TZ=${TZ:-Germany/Berlin}
+      - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
     cap_drop:
       - ALL
     cap_add:

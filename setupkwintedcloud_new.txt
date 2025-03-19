@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Local AI Stack Setup Guide
 # Created for Kwintes FA & 
 # Includes: n8n, Ollama, Qdrant, Prometheus, Grafana, Supabase, and Python
@@ -107,7 +109,55 @@ python3 start_services.py --profile cpu
 # 4. Start the local AI stack (n8n, Ollama, etc.)
 ```
 
-### 6. Verify Installation
+### 6. Set Up the Dashboard
+
+To create a centralized dashboard at your root domain (kwintes.cloud) that displays all your services:
+
+```bash
+# Run the dashboard setup script
+chmod +x dashboard/setup_dashboard.sh
+sudo ./dashboard/setup_dashboard.sh
+```
+
+This script will:
+1. Create a modern, responsive HTML dashboard
+2. Configure Caddy to serve it at your root domain
+3. Set up real-time status checking for all services
+4. Restart Caddy to apply the changes
+
+After running this script, you can access the dashboard at https://kwintes.cloud (your root domain).
+
+If the script fails, you can manually set it up:
+
+```bash
+# Create dashboard directory
+mkdir -p dashboard
+
+# Create index.html and status.js files (copy from repository)
+
+# Edit Caddyfile to add root domain entry
+nano Caddyfile
+# Add this before the first service entry:
+# {$DOMAIN_NAME} {
+#     root * /etc/caddy/dashboard
+#     file_server
+#     tls {
+#         protocols tls1.2 tls1.3
+#     }
+# }
+
+# Update docker-compose.yml to mount dashboard directory
+nano docker-compose.yml
+# Add under caddy volumes section:
+#       - ./dashboard:/etc/caddy/dashboard:ro
+# Add under caddy environment section:
+#       - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
+
+# Restart Caddy
+docker restart caddy
+```
+
+### 7. Verify Installation
 ```bash
 # Check running containers
 docker ps
@@ -121,13 +171,14 @@ curl http://localhost:54321  # Supabase Studio
 
 ## Accessing Services
 
-1. n8n: https://n8n.kwintes.cloud
-2. Web UI: https://openwebui.kwintes.cloud
-3. Flowise: https://flowise.kwintes.cloud
-4. Supabase: https://supabase.kwintes.cloud
-5. Supabase Studio: http://localhost:54321 or https://studio.supabase.kwintes.cloud
-6. Grafana: https://grafana.kwintes.cloud
-7. Prometheus: https://prometheus.kwintes.cloud
+1. Main Dashboard: https://kwintes.cloud
+2. n8n: https://n8n.kwintes.cloud
+3. Web UI: https://openwebui.kwintes.cloud
+4. Flowise: https://flowise.kwintes.cloud
+5. Supabase: https://supabase.kwintes.cloud
+6. Supabase Studio: http://localhost:54321 or https://studio.supabase.kwintes.cloud
+7. Grafana: https://grafana.kwintes.cloud
+8. Prometheus: https://prometheus.kwintes.cloud
 
 ## Supabase Configuration
 
@@ -214,4 +265,19 @@ docker compose -p localai ...
 
 # For standalone Docker Compose:
 docker-compose -p localai ...
+``` 
+
+### Dashboard Not Loading
+
+If the dashboard at your root domain is not loading:
+
+```bash
+# Check Caddy logs
+docker logs caddy
+
+# Verify dashboard files exist
+ls -la dashboard/
+
+# Restart Caddy
+docker restart caddy
 ``` 

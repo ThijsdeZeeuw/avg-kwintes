@@ -10,6 +10,15 @@
     }
 }
 
+# Root domain dashboard
+{$DOMAIN_NAME} {
+    root * /etc/caddy/dashboard
+    file_server
+    tls {
+        protocols tls1.2 tls1.3
+    }
+}
+
 # N8N
 {$N8N_HOSTNAME} {
     # For domains, Caddy will automatically use Let's Encrypt

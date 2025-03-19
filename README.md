@@ -14,6 +14,7 @@ A comprehensive self-hosted AI stack designed for VPS deployment, featuring n8n,
 - ✅ [**Supabase**](https://supabase.com/) - Database and authentication
 - ✅ [**Flowise**](https://flowiseai.com/) - AI agent builder
 - ✅ [**Open WebUI**](https://openwebui.com/) - ChatGPT-like interface
+- ✅ [**Central Dashboard**](#central-dashboard) - Service overview and status monitoring
 
 ## Prerequisites
 
@@ -75,6 +76,26 @@ The script will:
 - Set up monitoring with Prometheus and Grafana
 - Initialize all services
 
+6. Set up the central dashboard:
+```bash
+chmod +x dashboard/setup_dashboard.sh
+sudo ./dashboard/setup_dashboard.sh
+```
+
+This will create a beautiful dashboard at your root domain (e.g., `https://kwintes.cloud`) that displays all your AI services with their status.
+
+## Central Dashboard
+
+The central dashboard provides a modern, user-friendly interface to access all services from your root domain. Features include:
+
+- **Service Overview**: Cards for each available service with descriptions
+- **Live Status**: Real-time status indicators showing if services are running
+- **Categorized Services**: Visual grouping by function (AI, automation, database, monitoring)
+- **Direct Access**: One-click links to each service's interface
+- **Responsive Design**: Works on desktop and mobile devices
+
+![Dashboard Screenshot](https://example.com/dashboard-screenshot.jpg)
+
 ## Ollama Models
 
 The following models are automatically installed and available in the system:
@@ -108,6 +129,7 @@ These models are automatically downloaded during the initial setup process. The 
 
 After installation, you can access the following services:
 
+- Main Dashboard: https://your-domain.com
 - n8n: https://n8n.kwintes.cloud
 - Web UI: https://openwebui.kwintes.cloud
 - Flowise: https://flowise.kwintes.cloud
@@ -189,6 +211,18 @@ docker-compose -p localai ps
 - Visit Grafana dashboard
 - Check Prometheus targets
 - Review service health endpoints
+
+5. Dashboard Issues:
+```bash
+# Check Caddy logs
+docker logs caddy
+
+# Verify the dashboard files
+ls -la dashboard/
+
+# Restart Caddy
+docker restart caddy
+```
 
 ## Support
 

@@ -61,15 +61,32 @@ cd avg-kwintes
 
 ## Step 4: Environment Setup
 
-First, open the `.env.example` file and review it:
+The most user-friendly method is to use the interactive setup option:
 
 ```bash
-nano .env.example
+# Run the setup script with interactive mode
+python3 start_services.py --interactive
 ```
 
-Set at least the following values:
+This will guide you through the configuration, prompting for important settings:
+- Your main domain name
+- Email for Let's Encrypt certificates
+- Credentials for various services
+- System configuration
+
+Alternatively, you can manually create and edit the `.env` file:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit the file with your settings
+nano .env
+```
+
+Make sure to update at least the following values:
 - Domain and URL Settings:
-  - `DOMAIN_NAME`: Your main domain (e.g., `kwintes.cloud`)
+  - `DOMAIN_NAME`: Your main domain (e.g., `yourdomain.com`)
   - `SUBDOMAIN`: The subdomain for n8n (e.g., `n8n`)
   - `N8N_HOST` and `N8N_HOSTNAME`: The hostname for your n8n instance
 
@@ -80,28 +97,14 @@ Set at least the following values:
 
 - System Settings:
   - `LETSENCRYPT_EMAIL`: Your email for Let's Encrypt certificates
-  - `TZ`: Your timezone (e.g., `Germany/Berlin`)
+  - `TZ`: Your timezone (e.g., `Europe/Amsterdam`)
   - `DATA_FOLDER`: Location for persistent data storage
-
-After reviewing, save it as `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Or use the interactive setup to generate a configuration:
-
-```bash
-python3 start_services.py --interactive
-```
 
 ## Step 5: Start Services
 
-The updated start_services.py script includes specific handling for Ubuntu 24.04:
-
 ```bash
 # Run the start script with CPU profile
-python3 start_services.py --use-example --profile cpu
+python3 start_services.py --profile cpu
 ```
 
 This will:
@@ -109,6 +112,60 @@ This will:
 2. Clone the Supabase repository 
 3. Generate secure keys for SearXNG
 4. Start Supabase and the local AI stack
+
+## Step 6: Set Up the Services Dashboard
+
+Now you'll set up a centralized dashboard at your root domain. This dashboard will automatically use the domain configured in your `.env` file:
+
+```bash
+# Make the setup script executable
+chmod +x dashboard/setup_dashboard.sh
+
+# Run the setup script
+sudo ./dashboard/setup_dashboard.sh
+```
+
+The script will:
+1. Create the dashboard files with a modern, responsive UI
+2. Update the Caddyfile to serve the dashboard at your root domain
+3. Configure Docker Compose to mount the dashboard directory
+4. Restart the Caddy service to apply changes
+
+After running the script, you can access the main dashboard at your root domain (e.g., `https://yourdomain.com`). This dashboard provides:
+- Links to all services
+- Status indicators showing if each service is running
+- Service descriptions and categories
+
+If the script fails, you can perform these steps manually:
+
+```bash
+# Create dashboard directory
+mkdir -p dashboard
+
+# Edit the Caddyfile to add root domain
+nano Caddyfile
+# Add the following before the first service entry:
+# 
+# # Root domain dashboard
+# {$DOMAIN_NAME} {
+#     root * /etc/caddy/dashboard
+#     file_server
+#     tls {
+#         protocols tls1.2 tls1.3
+#     }
+# }
+
+# Edit docker-compose.yml to mount dashboard
+nano docker-compose.yml
+# Add this line in the caddy service, under volumes:
+#       - ./dashboard:/etc/caddy/dashboard:ro
+# 
+# Also add this environment variable:
+#       - DOMAIN_NAME=${DOMAIN_NAME:-yourdomain.com}
+
+# Restart Caddy to apply changes
+docker restart caddy
+```
 
 ## Connecting n8n to External APIs
 
@@ -173,16 +230,32 @@ If you're experiencing issues connecting to external APIs:
    /usr/local/bin/docker-compose -p localai logs -f [service_name]
    ```
 
+5. **Dashboard Not Loading**
+
+   If the dashboard at your root domain is not loading:
+   
+   ```bash
+   # Check Caddy logs
+   docker logs caddy
+   
+   # Verify the dashboard files exist
+   ls -la dashboard/
+   
+   # Restart Caddy
+   docker restart caddy
+   ```
+
 ## Accessing Services
 
 After installation, you can access the following services:
 
-- n8n: https://n8n.your-domain.com
-- Web UI: https://openwebui.your-domain.com
-- Flowise: https://flowise.your-domain.com
-- Supabase: https://supabase.your-domain.com
-- Supabase Studio: http://localhost:54321 or https://studio.supabase.your-domain.com
-- Grafana: https://grafana.your-domain.com
-- Prometheus: https://prometheus.your-domain.com
-- Whisper API: https://whisper.your-domain.com
-- Qdrant API: https://qdrant.your-domain.com 
+- Main Dashboard: https://yourdomain.com
+- n8n: https://n8n.yourdomain.com
+- Web UI: https://openwebui.yourdomain.com
+- Flowise: https://flowise.yourdomain.com
+- Supabase: https://supabase.yourdomain.com
+- Supabase Studio: http://localhost:54321 or https://studio.supabase.yourdomain.com
+- Grafana: https://grafana.yourdomain.com
+- Prometheus: https://prometheus.yourdomain.com
+- Whisper API: https://whisper.yourdomain.com
+- Qdrant API: https://qdrant.yourdomain.com 
