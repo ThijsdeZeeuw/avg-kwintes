@@ -69,10 +69,13 @@ services:
   # Fix n8n port conflict with Supabase
   n8n:
     ports:
-      - "5678:5678"
+      - "5678:5678"  # Map external 5678 to internal 5678
     environment:
-      - N8N_PORT=5678
+      - N8N_PORT=5678  # Instruct n8n to listen on port 5678 internally
       - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - N8N_METRICS_ENABLED=true
 
   caddy:
     container_name: caddy

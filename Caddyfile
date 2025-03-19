@@ -23,7 +23,7 @@
 {$N8N_HOSTNAME} {
     # For domains, Caddy will automatically use Let's Encrypt
     # For localhost/port addresses, HTTPS won't be enabled
-    reverse_proxy n8n:8000
+    reverse_proxy n8n:5678
     tls {
         protocols tls1.2 tls1.3
     }
@@ -31,7 +31,7 @@
 
 # Open WebUI
 {$WEBUI_HOSTNAME} {
-    reverse_proxy open-webui:3000
+    reverse_proxy open-webui:8080
     tls {
         protocols tls1.2 tls1.3
     }
@@ -47,7 +47,7 @@
 
 # Ollama API
 {$OLLAMA_HOSTNAME} {
-    reverse_proxy localhost:11434
+    reverse_proxy ollama:11434
     tls {
         protocols tls1.2 tls1.3
     }
@@ -112,7 +112,7 @@
     }
     
     # SearXNG (uWSGI)
-    reverse_proxy localhost:8080 {
+    reverse_proxy searxng:8080 {
         header_up X-Forwarded-Port {http.request.port}
         header_up X-Real-IP {http.request.remote.host}
         # https://github.com/searx/searx-docker/issues/24

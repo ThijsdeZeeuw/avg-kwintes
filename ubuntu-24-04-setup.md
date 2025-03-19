@@ -193,6 +193,23 @@ If you're experiencing issues connecting to external APIs:
 3. Verify the SUBDOMAIN and DOMAIN_NAME variables are correctly set in your .env file
 4. Test webhook endpoints using a tool like Postman or Insomnia
 
+## Important: n8n Port Configuration
+
+**Note:** There is a critical configuration that needs to be fixed for n8n to work properly. The default setup has a port conflict between n8n and Supabase (both want to use port 8000 internally). To fix this, we've configured n8n to use port 5678 instead.
+
+If your n8n service is still configured with the old port mapping (showing as `0.0.0.0:8008->8000/tcp`), you need to apply the fix:
+
+```bash
+# Run the fix script
+sudo ./dashboard/fix_caddy.sh
+```
+
+This will:
+1. Update your .env file to set N8N_PORT=5678
+2. Create a docker-compose override to use the correct port
+3. Fix the Caddyfile to point to the right port
+4. Restart all services
+
 ## Troubleshooting
 
 ### Common Issues on Ubuntu 24.04
@@ -257,20 +274,77 @@ If you're experiencing issues connecting to external APIs:
    sudo ./dashboard/fix_caddy.sh
    ```
 
+7. **n8n Not Working**
+
+   If n8n is still showing the wrong port configuration (like `0.0.0.0:8008->8000/tcp`):
+   
+   ```bash
+   # Stop all containers
+   docker compose down
+   
+   # Apply the fix and restart
+   sudo ./dashboard/fix_caddy.sh
+   
+   # Check n8n container status
+   docker ps | grep n8n
+   
+   # The correct port mapping should be 5678:5678
+   ```
+
 ## Accessing Services
 
 After installation, you can access the following services:
 
-- Main Dashboard: https://yourdomain.com
-- n8n: https://n8n.yourdomain.com
-- Web UI: https://openwebui.yourdomain.com
-- Flowise: https://flowise.yourdomain.com
-- Supabase: https://supabase.yourdomain.com
-- Supabase Studio: http://localhost:54321 or https://studio.supabase.yourdomain.com
-- Grafana: https://grafana.yourdomain.com
-- Prometheus: https://prometheus.yourdomain.com
-- Whisper API: https://whisper.yourdomain.com
-- Qdrant API: https://qdrant.yourdomain.com 
+### Via Domain Names (with configured DNS)
+
+- Main Dashboard: https://kwintes.cloud
+- n8n: https://n8n.kwintes.cloud
+- Web UI: https://openwebui.kwintes.cloud
+- Flowise: https://flowise.kwintes.cloud
+- Supabase: https://supabase.kwintes.cloud
+- Supabase Studio: https://studio.supabase.kwintes.cloud
+- Grafana: https://grafana.kwintes.cloud
+- Prometheus: https://prometheus.kwintes.cloud
+- Ollama API: https://ollama.kwintes.cloud
+- Qdrant API: https://qdrant.kwintes.cloud
+- SearXNG: https://searxng.kwintes.cloud
+
+### Via IP Address (replace 46.202.155.155 with your VPS IP)
+
+- Main Dashboard: http://46.202.155.155
+- n8n: http://46.202.155.155:5678 (NOT port 8008)
+- Web UI (Open WebUI): http://46.202.155.155:3000
+- Flowise: http://46.202.155.155:3001
+- Supabase API: http://46.202.155.155:8000
+- Supabase Studio: http://46.202.155.155:54321
+- Grafana: http://46.202.155.155:3005
+- Prometheus: http://46.202.155.155:9090
+- Ollama API: http://46.202.155.155:11434
+- Qdrant API: http://46.202.155.155:6333
+- SearXNG: http://46.202.155.155:8080
+
+## n8n Container Configuration
+
+The standard n8n container in our configuration now uses these settings:
+
+```yaml
+n8n:
+  # Uses the base n8n configuration from x-n8n service
+  <<: *service-n8n
+  container_name: n8n
+  restart: unless-stopped
+  ports:
+    - 5678:5678  # Changed from 8008:8000 to avoid conflict with Supabase
+  environment:
+    - N8N_PORT=5678
+    - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+  volumes:
+    - n8n_storage:/home/node/.n8n
+    - ./n8n/backup:/backup
+    - ./shared:/data/shared
+  networks:
+    - monitoring
+```
 
 ---
 
