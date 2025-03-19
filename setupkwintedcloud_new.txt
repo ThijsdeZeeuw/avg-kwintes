@@ -41,7 +41,8 @@ sudo apt install -y ffmpeg portaudio19-dev python3-pyaudio
 sudo ufw enable
 sudo ufw allow 8000  # n8n
 sudo ufw allow 3001  # Flowise
-sudo ufw allow 3000  # Web UI & Grafana
+sudo ufw allow 3000  # Web UI 
+sudo ufw allow 3005  # Grafana
 sudo ufw allow 5678  # n8n webhook
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS

@@ -41,7 +41,7 @@ sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
 sudo ufw allow 8000  # n8n
 sudo ufw allow 3001  # Flowise
-sudo ufw allow 3000  # Web UI & Grafana
+sudo ufw allow 3005  # Grafana
 sudo ufw allow 5678  # n8n webhook
 sudo ufw allow 8080  # SearXNG
 sudo ufw allow 11434 # Ollama
@@ -184,4 +184,5 @@ After installation, you can access the following services:
 - Supabase Studio: http://localhost:54321 or https://studio.supabase.your-domain.com
 - Grafana: https://grafana.your-domain.com
 - Prometheus: https://prometheus.your-domain.com
+- Whisper API: https://whisper.your-domain.com
 - Qdrant API: https://qdrant.your-domain.com 

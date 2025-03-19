@@ -186,7 +186,7 @@ def create_interactive_env():
         
         # Monitoring Configuration
         'PROMETHEUS_PORT': default_values.get('PROMETHEUS_PORT', '9090'),
-        'GRAFANA_PORT': default_values.get('GRAFANA_PORT', '3000'),
+        'GRAFANA_PORT': default_values.get('GRAFANA_PORT', '3005'),
         'GRAFANA_ADMIN_USER': default_values.get('GRAFANA_ADMIN_USER', 'admin'),
         'GRAFANA_ADMIN_PASS': default_values.get('GRAFANA_ADMIN_PASS', generate_random_string(16)),
         'DATA_FOLDER': default_values.get('DATA_FOLDER', './data'),
