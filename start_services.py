@@ -513,6 +513,24 @@ def check_and_fix_docker_compose_for_searxng():
     except Exception as e:
         print(f"Error checking/modifying docker-compose.yml for SearXNG: {e}")
 
+def create_data_directories():
+    """Create necessary data directories for mounted volumes."""
+    print("Creating data directories...")
+    
+    # Create base data directory if it doesn't exist
+    data_dir = os.environ.get('DATA_FOLDER', './data')
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+    
+    # Create Grafana provisioning directories
+    grafana_dir = os.path.join(data_dir, 'grafana', 'provisioning')
+    for subdir in ['datasources', 'dashboards', 'notifiers', 'plugins']:
+        full_path = os.path.join(grafana_dir, subdir)
+        if not os.path.exists(full_path):
+            os.makedirs(full_path, exist_ok=True)
+    
+    print(f"Created data directories in {data_dir}")
+
 def main():
     parser = argparse.ArgumentParser(description='Start the local AI and Supabase services.')
     parser.add_argument('--profile', choices=['cpu', 'gpu-nvidia', 'gpu-amd', 'none'], default='cpu',
@@ -543,6 +561,9 @@ def main():
     
     # Initialize monitoring
     initialize_monitoring()
+    
+    # Create necessary data directories
+    create_data_directories()
     
     # Clone Supabase repo and prepare environment
     clone_supabase_repo()

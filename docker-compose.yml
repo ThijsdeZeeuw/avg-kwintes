@@ -10,7 +10,6 @@ volumes:
   prometheus_data:
   grafana_data:
   whisper_data:
-  ${DATA_FOLDER:-./data}:
 
 x-n8n: &service-n8n
   image: n8nio/n8n:latest
@@ -128,7 +127,7 @@ services:
       - TZ=${TZ:-Germany/Berlin}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ${DATA_FOLDER:-./data}/grafana/provisioning:/etc/grafana/provisioning
+      - ./data/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
 
