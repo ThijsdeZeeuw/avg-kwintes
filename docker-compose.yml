@@ -161,7 +161,11 @@ services:
   caddy:
     container_name: caddy
     image: docker.io/library/caddy:2-alpine
-    network_mode: host
+    networks:
+      - monitoring
+    ports:
+      - "80:80"
+      - "443:443"
     restart: unless-stopped
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -175,7 +179,7 @@ services:
       - OLLAMA_HOSTNAME=${OLLAMA_HOSTNAME:-"ollama.${DOMAIN_NAME:-kwintes.cloud}"}
       - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-"supabase.${DOMAIN_NAME:-kwintes.cloud}"}
       - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-"searxng.${DOMAIN_NAME:-kwintes.cloud}"}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-internal}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-tddezeeuw@gmail.com}
       - TZ=${TZ:-Germany/Berlin}
       - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
     cap_drop:

@@ -1,25 +1,17 @@
 #!/bin/bash
-# Kwintes.cloud Dashboard Setup Script
-# Created and maintained by Z4Y
+# Dashboard Setup Script for Kwintes.cloud
+# This script sets up the dashboard with dynamic domain configuration
 
-# Check if running as root
-if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
-  echo "Please run as root or with sudo"
-  exit 1
-fi
-
-# Set working directory to avg-kwintes
+# Set working directory
 if [ -d "/root/avg-kwintes" ]; then
   cd /root/avg-kwintes
 elif [ -d "$(dirname "$0")/.." ]; then
-  cd $(dirname "$0")/..
+  cd "$(dirname "$0")/.."
 else
   echo "Error: Cannot find avg-kwintes directory. Run this script from the project directory."
   echo "For example: sudo ./dashboard/setup_dashboard.sh"
   exit 1
 fi
-
-echo "Working directory: $(pwd)"
 
 # Get domain from .env file or prompt user
 DOMAIN_NAME=""
@@ -41,117 +33,143 @@ if [ -z "$DOMAIN_NAME" ]; then
   fi
 fi
 
+echo "Setting up dashboard with domain: $DOMAIN_NAME"
+
 # Create dashboard directory if it doesn't exist
 mkdir -p dashboard
 
-# Create index.html file with dynamic domain
+# Create index.html with dynamic domain
 cat > dashboard/index.html << EOL
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${DOMAIN_NAME} Dashboard</title>
+    <title>${DOMAIN_NAME} - AI Services Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #3498db;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --dark: #34495e;
-            --light: #ecf0f1;
-            --text: #2c3e50;
-            --border: #bdc3c7;
-            --automation: #9b59b6;
-            --ai: #3498db;
-            --database: #e67e22;
-            --monitoring: #27ae60;
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #6366f1;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray: #64748b;
         }
         
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--text);
+            font-family: 'Inter', sans-serif;
             background-color: var(--light);
-            padding: 20px;
+            color: var(--dark);
+            line-height: 1.6;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 2rem;
         }
         
-        .header {
+        header {
             text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
         }
         
-        .header h1 {
+        h1 {
             font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
             color: var(--primary);
-            margin-bottom: 10px;
         }
         
-        .header p {
-            font-size: 1.2rem;
-            color: var(--dark);
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--gray);
+            margin-bottom: 1rem;
         }
         
-        .service-grid {
+        .services-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
         }
         
         .service-card {
             background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0.75rem;
             overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border-top: 5px solid var(--primary);
+            display: flex;
+            flex-direction: column;
         }
         
         .service-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
-        }
-        
-        .service-card.automation {
-            border-top-color: var(--automation);
-        }
-        
-        .service-card.ai {
-            border-top-color: var(--ai);
-        }
-        
-        .service-card.database {
-            border-top-color: var(--database);
-        }
-        
-        .service-card.monitoring {
-            border-top-color: var(--monitoring);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         
         .card-header {
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
+            padding: 1.25rem;
+            background-color: var(--primary);
+            color: white;
         }
         
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: bold;
+        .card-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-header p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+        
+        .card-body {
+            padding: 1.25rem;
+            flex-grow: 1;
+        }
+        
+        .card-body p {
+            margin-bottom: 1rem;
+            color: var(--gray);
+        }
+        
+        .card-footer {
+            padding: 1.25rem;
+            background-color: rgba(0,0,0,0.02);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background-color: var(--primary-dark);
         }
         
         .status-indicator {
@@ -159,255 +177,235 @@ cat > dashboard/index.html << EOL
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background-color: var(--warning);
-        }
-        
-        .status-indicator.online {
+            margin-right: 8px;
             background-color: var(--success);
         }
         
-        .status-indicator.offline {
-            background-color: var(--danger);
+        .status {
+            display: flex;
+            align-items: center;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
         }
         
-        .card-body {
-            padding: 15px;
+        .service-card.automation .card-header {
+            background-color: #3b82f6;
         }
         
-        .card-description {
-            margin-bottom: 15px;
-            color: var(--dark);
-            min-height: 70px;
+        .service-card.ai .card-header {
+            background-color: #8b5cf6;
         }
         
-        .card-footer {
-            padding: 15px;
-            border-top: 1px solid var(--border);
+        .service-card.database .card-header {
+            background-color: #10b981;
+        }
+        
+        .service-card.monitoring .card-header {
+            background-color: #f59e0b;
+        }
+        
+        .service-card.search .card-header {
+            background-color: #6366f1;
+        }
+        
+        footer {
+            margin-top: 3rem;
             text-align: center;
-        }
-        
-        .service-link {
-            display: inline-block;
-            padding: 8px 15px;
-            background-color: var(--primary);
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background-color 0.3s ease;
-            width: 100%;
-        }
-        
-        .service-link:hover {
-            background-color: #2980b9;
-        }
-        
-        .service-link.automation {
-            background-color: var(--automation);
-        }
-        
-        .service-link.automation:hover {
-            background-color: #8e44ad;
-        }
-        
-        .service-link.ai {
-            background-color: var(--ai);
-        }
-        
-        .service-link.ai:hover {
-            background-color: #2980b9;
-        }
-        
-        .service-link.database {
-            background-color: var(--database);
-        }
-        
-        .service-link.database:hover {
-            background-color: #d35400;
-        }
-        
-        .service-link.monitoring {
-            background-color: var(--monitoring);
-        }
-        
-        .service-link.monitoring:hover {
-            background-color: #219653;
-        }
-        
-        .category-header {
-            margin: 30px 0 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-            color: var(--dark);
+            color: var(--gray);
+            font-size: 0.875rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
         }
         
         @media (max-width: 768px) {
-            .service-grid {
+            .services-grid {
                 grid-template-columns: 1fr;
             }
             
-            .header h1 {
+            h1 {
                 font-size: 2rem;
             }
             
-            .header p {
-                font-size: 1rem;
+            .container {
+                padding: 1rem;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>${DOMAIN_NAME} Dashboard</h1>
-            <p>Self-hosted AI and automation services</p>
-        </div>
+        <header>
+            <h1 id="domain-title">${DOMAIN_NAME} AI Services</h1>
+            <p class="subtitle">Your centralized AI automation platform</p>
+        </header>
         
-        <h2 class="category-header">Automation</h2>
-        <div class="service-grid">
+        <div class="services-grid">
+            <!-- n8n -->
             <div class="service-card automation">
                 <div class="card-header">
-                    <div class="card-title">n8n</div>
-                    <div class="status-indicator" id="n8n-status"></div>
+                    <h2>n8n</h2>
+                    <p>Workflow Automation</p>
                 </div>
                 <div class="card-body">
-                    <div class="card-description">
-                        Powerful workflow automation with 400+ integrations. Connect apps, automate tasks, and build workflows.
+                    <p>Create and manage automation workflows to connect applications and services.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://n8n.${DOMAIN_NAME}" class="service-link automation">Open n8n</a>
+                    <a href="https://n8n.${DOMAIN_NAME}" class="btn">Access n8n</a>
                 </div>
             </div>
             
-            <div class="service-card automation">
-                <div class="card-header">
-                    <div class="card-title">Flowise</div>
-                    <div class="status-indicator" id="flowise-status"></div>
-                </div>
-                <div class="card-body">
-                    <div class="card-description">
-                        Open-source tool to build LLM flows using a drag-and-drop interface. Create AI agents and chatbots.
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <a href="https://flowise.${DOMAIN_NAME}" class="service-link automation">Open Flowise</a>
-                </div>
-            </div>
-        </div>
-        
-        <h2 class="category-header">AI Tools</h2>
-        <div class="service-grid">
+            <!-- Open WebUI -->
             <div class="service-card ai">
                 <div class="card-header">
-                    <div class="card-title">Open WebUI</div>
-                    <div class="status-indicator" id="openwebui-status"></div>
+                    <h2>Open WebUI</h2>
+                    <p>AI Interface</p>
                 </div>
                 <div class="card-body">
-                    <div class="card-description">
-                        ChatGPT-like interface for local LLMs. Conversation history, file uploads, and more.
+                    <p>ChatGPT-like interface for interacting with local AI models through Ollama.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://openwebui.${DOMAIN_NAME}" class="service-link ai">Open WebUI</a>
+                    <a href="https://openwebui.${DOMAIN_NAME}" class="btn">Access WebUI</a>
                 </div>
             </div>
             
+            <!-- Flowise -->
             <div class="service-card ai">
                 <div class="card-header">
-                    <div class="card-title">Ollama API</div>
-                    <div class="status-indicator" id="ollama-status"></div>
+                    <h2>Flowise</h2>
+                    <p>AI Flow Builder</p>
                 </div>
                 <div class="card-body">
-                    <div class="card-description">
-                        API for running Ollama models. Used by other services for local AI inference.
+                    <p>Build and deploy AI agents, chatbots, and complex conversational flows.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://ollama.${DOMAIN_NAME}" class="service-link ai">Ollama API</a>
+                    <a href="https://flowise.${DOMAIN_NAME}" class="btn">Access Flowise</a>
                 </div>
             </div>
             
-            <div class="service-card ai">
-                <div class="card-header">
-                    <div class="card-title">SearXNG</div>
-                    <div class="status-indicator" id="searxng-status"></div>
-                </div>
-                <div class="card-body">
-                    <div class="card-description">
-                        Private, self-hosted metasearch engine. Search the web without tracking.
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <a href="https://searxng.${DOMAIN_NAME}" class="service-link ai">Open SearXNG</a>
-                </div>
-            </div>
-        </div>
-        
-        <h2 class="category-header">Database & Storage</h2>
-        <div class="service-grid">
+            <!-- Supabase -->
             <div class="service-card database">
                 <div class="card-header">
-                    <div class="card-title">Supabase</div>
-                    <div class="status-indicator" id="supabase-status"></div>
+                    <h2>Supabase</h2>
+                    <p>Backend Platform</p>
                 </div>
                 <div class="card-body">
-                    <div class="card-description">
-                        Open-source Firebase alternative. PostgreSQL database, authentication, storage, and more.
+                    <p>Postgres database, authentication, storage, and instant APIs for your applications.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://supabase.${DOMAIN_NAME}" class="service-link database">Open Supabase</a>
+                    <a href="https://supabase.${DOMAIN_NAME}" class="btn">Access Supabase</a>
                 </div>
             </div>
             
+            <!-- Qdrant -->
             <div class="service-card database">
                 <div class="card-header">
-                    <div class="card-title">Qdrant</div>
-                    <div class="status-indicator" id="qdrant-status"></div>
+                    <h2>Qdrant</h2>
+                    <p>Vector Database</p>
                 </div>
                 <div class="card-body">
-                    <div class="card-description">
-                        Vector database for AI applications. Store and search vectors for semantic search and retrieval.
+                    <p>High-performance vector database for AI applications and similarity search.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://qdrant.${DOMAIN_NAME}" class="service-link database">Open Qdrant</a>
+                    <a href="https://qdrant.${DOMAIN_NAME}" class="btn">Access Qdrant</a>
+                </div>
+            </div>
+            
+            <!-- Grafana -->
+            <div class="service-card monitoring">
+                <div class="card-header">
+                    <h2>Grafana</h2>
+                    <p>Monitoring Dashboard</p>
+                </div>
+                <div class="card-body">
+                    <p>Visualize and monitor metrics from all services in real-time dashboards.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="https://grafana.${DOMAIN_NAME}" class="btn">Access Grafana</a>
+                </div>
+            </div>
+            
+            <!-- Prometheus -->
+            <div class="service-card monitoring">
+                <div class="card-header">
+                    <h2>Prometheus</h2>
+                    <p>Metrics Collection</p>
+                </div>
+                <div class="card-body">
+                    <p>Collect and query time series data from all services for monitoring.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="https://prometheus.${DOMAIN_NAME}" class="btn">Access Prometheus</a>
+                </div>
+            </div>
+            
+            <!-- Ollama -->
+            <div class="service-card ai">
+                <div class="card-header">
+                    <h2>Ollama</h2>
+                    <p>Local LLM Engine</p>
+                </div>
+                <div class="card-body">
+                    <p>Run large language models locally with API access for applications.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="https://ollama.${DOMAIN_NAME}" class="btn">Access Ollama API</a>
+                </div>
+            </div>
+            
+            <!-- SearXNG -->
+            <div class="service-card search">
+                <div class="card-header">
+                    <h2>SearXNG</h2>
+                    <p>Private Search Engine</p>
+                </div>
+                <div class="card-body">
+                    <p>A privacy-respecting, self-hosted metasearch engine with numerous features.</p>
+                    <div class="status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="https://searxng.${DOMAIN_NAME}" class="btn">Access SearXNG</a>
                 </div>
             </div>
         </div>
         
-        <h2 class="category-header">Monitoring</h2>
-        <div class="service-grid">
-            <div class="service-card monitoring">
-                <div class="card-header">
-                    <div class="card-title">Grafana</div>
-                    <div class="status-indicator" id="grafana-status"></div>
-                </div>
-                <div class="card-body">
-                    <div class="card-description">
-                        Observability platform for metrics visualization and monitoring dashboards.
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <a href="https://grafana.${DOMAIN_NAME}" class="service-link monitoring">Open Grafana</a>
-                </div>
-            </div>
-            
-            <div class="service-card monitoring">
-                <div class="card-header">
-                    <div class="card-title">Prometheus</div>
-                    <div class="status-indicator" id="prometheus-status"></div>
-                </div>
-                <div class="card-body">
-                    <div class="card-description">
-                        Monitoring system and time series database. Collects metrics from all services.
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <a href="https://prometheus.${DOMAIN_NAME}" class="service-link monitoring">Open Prometheus</a>
-                </div>
-            </div>
-        </div>
+        <footer>
+            <p>&copy; 2025 ${DOMAIN_NAME} - Local AI Stack</p>
+        </footer>
     </div>
     
     <script src="status.js"></script>
@@ -415,207 +413,65 @@ cat > dashboard/index.html << EOL
 </html>
 EOL
 
-# Create status.js file with dynamic domain
+# Create status.js with dynamic domain
 cat > dashboard/status.js << EOL
-document.addEventListener('DOMContentLoaded', () => {
-    // Get domain from window.location or use configured domain as fallback
-    const domain = window.location.hostname.includes('.')
-        ? window.location.hostname.substring(window.location.hostname.indexOf('.') + 1)
-        : '${DOMAIN_NAME}';
+document.addEventListener('DOMContentLoaded', function() {
+    // Get domain from window.location
+    const domain = window.location.hostname;
     
+    // List of services to check
     const services = [
-        { id: 'n8n-status', url: \`https://n8n.\${domain}/healthz\` },
-        { id: 'flowise-status', url: \`https://flowise.\${domain}/api/health\` },
-        { id: 'openwebui-status', url: \`https://openwebui.\${domain}/api/health\` },
-        { id: 'ollama-status', url: \`https://ollama.\${domain}/api/health\` },
-        { id: 'searxng-status', url: \`https://searxng.\${domain}/healthz\` },
-        { id: 'supabase-status', url: \`https://supabase.\${domain}/health\` },
-        { id: 'qdrant-status', url: \`https://qdrant.\${domain}/healthz\` },
-        { id: 'grafana-status', url: \`https://grafana.\${domain}/api/health\` },
-        { id: 'prometheus-status', url: \`https://prometheus.\${domain}/-/healthy\` }
+        { name: 'n8n', url: 'https://n8n.' + domain + '/healthz', selector: '.service-card.automation .status' },
+        { name: 'openwebui', url: 'https://openwebui.' + domain + '/', selector: '.service-card.ai:nth-child(2) .status' },
+        { name: 'flowise', url: 'https://flowise.' + domain + '/', selector: '.service-card.ai:nth-child(3) .status' },
+        { name: 'supabase', url: 'https://supabase.' + domain + '/', selector: '.service-card.database:nth-child(4) .status' },
+        { name: 'qdrant', url: 'https://qdrant.' + domain + '/healthz', selector: '.service-card.database:nth-child(5) .status' },
+        { name: 'grafana', url: 'https://grafana.' + domain + '/', selector: '.service-card.monitoring:nth-child(6) .status' },
+        { name: 'prometheus', url: 'https://prometheus.' + domain + '/-/healthy', selector: '.service-card.monitoring:nth-child(7) .status' },
+        { name: 'ollama', url: 'https://ollama.' + domain + '/', selector: '.service-card.ai:nth-child(8) .status' },
+        { name: 'searxng', url: 'https://searxng.' + domain + '/healthz', selector: '.service-card.search .status' }
     ];
     
-    const checkServiceStatus = async (service) => {
-        const indicator = document.getElementById(service.id);
-        if (!indicator) return;
+    // Function to check service status
+    function checkServiceStatus(service) {
+        const statusElement = document.querySelector(service.selector);
+        const indicator = statusElement.querySelector('.status-indicator');
+        const statusText = statusElement.querySelector('span:last-child');
         
-        try {
-            const response = await fetch(service.url, {
-                method: 'GET',
-                mode: 'no-cors',
-                cache: 'no-store',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            });
-            
-            // Since we're using no-cors, we can't actually check the status
-            // But if the fetch doesn't throw an error, we'll consider it online
-            indicator.classList.add('online');
-            indicator.classList.remove('offline');
-        } catch (error) {
-            // If the fetch throws an error, the service is probably offline
-            indicator.classList.add('offline');
-            indicator.classList.remove('online');
-        }
-    };
-    
-    // Initial check
-    services.forEach(service => {
-        checkServiceStatus(service);
-    });
-    
-    // Check every 60 seconds
-    setInterval(() => {
-        services.forEach(service => {
-            checkServiceStatus(service);
+        // Make a fetch request with a timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        fetch(service.url, { 
+            method: 'GET',
+            mode: 'no-cors', // Since we're crossing domains
+            signal: controller.signal
+        })
+        .then(response => {
+            clearTimeout(timeoutId);
+            indicator.style.backgroundColor = 'var(--success)';
+            statusText.textContent = 'Running';
+        })
+        .catch(error => {
+            clearTimeout(timeoutId);
+            indicator.style.backgroundColor = 'var(--danger)';
+            statusText.textContent = 'Unavailable';
+            console.error('Error checking ' + service.name + ':', error);
         });
+    }
+    
+    // Check status of all services
+    services.forEach(checkServiceStatus);
+    
+    // Refresh status every 60 seconds
+    setInterval(() => {
+        services.forEach(checkServiceStatus);
     }, 60000);
     
-    // Log current domain for debugging
-    console.log(\`Dashboard domain: \${window.location.hostname}\`);
-    console.log(\`Services domain: \${domain}\`);
+    // Log domain for debugging
+    console.log('Using domain: ' + domain);
 });
 EOL
 
-# Check if Caddyfile exists and modify it
-echo "Looking for Caddyfile..."
-if [ -f "Caddyfile" ]; then
-    echo "Caddyfile found. Checking for root domain entry..."
-    # Use grep with extended regex for more reliable matching
-    if ! grep -E "^\{\\\$DOMAIN_NAME\}" "Caddyfile" > /dev/null && ! grep -E "^{\\$DOMAIN_NAME}" "Caddyfile" > /dev/null; then
-        echo "Root domain entry not found. Adding it to Caddyfile..."
-        
-        # Create a temporary file with the new content
-        cat > Caddyfile.new << 'EOL'
-{
-    # Global options - works for both environments
-    email {$LETSENCRYPT_EMAIL}
-    admin off
-    auto_https off
-    servers {
-        protocol {
-            experimental_http3
-        }
-    }
-}
-
-# Root domain dashboard
-{$DOMAIN_NAME} {
-    root * /etc/caddy/dashboard
-    file_server
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-EOL
-        
-        # Append the original file content excluding the first block
-        sed -n '/^\}/,$ p' Caddyfile | tail -n +2 >> Caddyfile.new
-        
-        # Replace the original file
-        mv Caddyfile.new Caddyfile
-        echo "Updated Caddyfile with root domain entry"
-    else
-        echo "Root domain entry already exists in Caddyfile"
-    fi
-else
-    echo "Error: Caddyfile not found. Please make sure you're in the correct directory."
-    exit 1
-fi
-
-# Check if docker-compose.yml exists and modify it
-echo "Looking for docker-compose.yml..."
-if [ -f "docker-compose.yml" ]; then
-    echo "docker-compose.yml found. Checking for dashboard mount..."
-    
-    # Check if dashboard mount already exists
-    if ! grep -q "./dashboard:/etc/caddy/dashboard" "docker-compose.yml"; then
-        echo "Dashboard mount not found. Adding it to docker-compose.yml..."
-        
-        # Use sed to add the dashboard mount
-        # Look for the Caddyfile mount line and add the dashboard mount after it
-        sed -i '/- \.\/Caddyfile:\/etc\/caddy\/Caddyfile/a \ \ \ \ \ \ - ./dashboard:/etc/caddy/dashboard:ro' docker-compose.yml
-        echo "Added dashboard mount to docker-compose.yml"
-    else
-        echo "Dashboard mount already exists in docker-compose.yml"
-    fi
-    
-    # Check if DOMAIN_NAME environment variable exists
-    if ! grep -q "DOMAIN_NAME=\${DOMAIN_NAME" docker-compose.yml; then
-        echo "DOMAIN_NAME environment variable not found. Adding it to docker-compose.yml..."
-        
-        # Use sed to add the environment variable
-        # Add it to the caddy environment section
-        sed -i '/environment:/a \ \ \ \ \ \ - DOMAIN_NAME=${DOMAIN_NAME:-'"$DOMAIN_NAME"'}' docker-compose.yml
-        echo "Added DOMAIN_NAME environment variable to docker-compose.yml"
-    else
-        echo "DOMAIN_NAME environment variable already exists in docker-compose.yml"
-    fi
-else
-    echo "Error: docker-compose.yml not found. Please make sure you're in the correct directory."
-    exit 1
-fi
-
-# Check if caddy container is running and restart it
-echo "Checking if Caddy container is running..."
-if docker ps | grep -q "caddy"; then
-    echo "Caddy container is running. Restarting it to apply changes..."
-    docker restart caddy
-    echo "Caddy container restarted."
-else
-    echo "Caddy container is not running. Changes will be applied when you start the services."
-fi
-
-# Set proper permissions for the dashboard directory if run with sudo
-if [ -n "$SUDO_USER" ]; then
-    echo "Setting proper ownership of dashboard directory..."
-    chown -R $SUDO_USER:$SUDO_USER dashboard
-fi
-
-# Create README.md for dashboard if it doesn't exist
-if [ ! -f "dashboard/README.md" ]; then
-    cat > dashboard/README.md << EOL
-# ${DOMAIN_NAME} Dashboard
-
-This directory contains the necessary files for setting up the dashboard at ${DOMAIN_NAME}.
-
-## Dashboard Setup
-
-The dashboard provides a centralized overview of all the AI services running in your infrastructure.
-
-### Implementation Instructions
-
-1. **Run the automated setup script:**
-   \`\`\`bash
-   # Make the script executable (Linux/Mac)
-   chmod +x dashboard/setup_dashboard.sh
-   
-   # Run the script
-   sudo ./dashboard/setup_dashboard.sh
-   \`\`\`
-
-2. **Manual setup (if the script fails):**
-   - Create the dashboard directory: \`mkdir -p dashboard\`
-   - Copy the \`index.html\` and \`status.js\` files to the dashboard directory
-   - Update the Caddyfile to add the root domain entry
-   - Update docker-compose.yml to mount the dashboard directory
-   - Restart Caddy: \`docker restart caddy\`
-
-## Troubleshooting
-
-If the dashboard isn't accessible:
-1. Check if Caddy is running: \`docker ps | grep caddy\`
-2. View Caddy logs: \`docker logs caddy\`
-3. Verify the DNS records for your root domain
-
-Created and maintained by Z4Y
-EOL
-fi
-
-echo "Dashboard setup complete!"
-echo "Your dashboard is now available at your root domain (https://${DOMAIN_NAME})."
-echo ""
-echo "Dashboard setup script completed successfully."
+echo "Dashboard files created with domain: $DOMAIN_NAME"
+echo "To apply changes, make sure to restart Caddy: docker restart caddy"

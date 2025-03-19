@@ -1,8 +1,8 @@
 {
-    # Global options - works for both environments
-    email tddezeeuw@gmail.com
+    # Global options
+    email {$LETSENCRYPT_EMAIL}
+    auto_https on
     admin off
-    auto_https disable_redirects # Modified to use a more stable option
     servers {
         protocol {
             experimental_http3
@@ -21,8 +21,6 @@
 
 # N8N
 {$N8N_HOSTNAME} {
-    # For domains, Caddy will automatically use Let's Encrypt
-    # For localhost/port addresses, HTTPS won't be enabled
     reverse_proxy n8n:8000
     tls {
         protocols tls1.2 tls1.3
@@ -31,7 +29,7 @@
 
 # Open WebUI
 {$WEBUI_HOSTNAME} {
-    reverse_proxy open-webui:3000
+    reverse_proxy open-webui:8080
     tls {
         protocols tls1.2 tls1.3
     }
@@ -47,7 +45,7 @@
 
 # Ollama API
 {$OLLAMA_HOSTNAME} {
-    reverse_proxy localhost:11434
+    reverse_proxy ollama:11434
     tls {
         protocols tls1.2 tls1.3
     }
@@ -55,7 +53,7 @@
 
 # Supabase
 {$SUPABASE_HOSTNAME} {
-    reverse_proxy supabase:3000
+    reverse_proxy supabase-studio:3000
     tls {
         protocols tls1.2 tls1.3
     }
@@ -112,7 +110,7 @@
     }
     
     # SearXNG (uWSGI)
-    reverse_proxy localhost:8080 {
+    reverse_proxy searxng:8080 {
         header_up X-Forwarded-Port {http.request.port}
         header_up X-Real-IP {http.request.remote.host}
         # https://github.com/searx/searx-docker/issues/24
@@ -145,6 +143,4 @@ qdrant.{$DOMAIN_NAME} {
     tls {
         protocols tls1.2 tls1.3
     }
-}
-
-# Created and maintained by Z4Y
+} 

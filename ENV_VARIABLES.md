@@ -16,7 +16,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `SUPABASE_HOSTNAME` | Full hostname for Supabase | `supabase.kwintes.cloud` |
 | `OLLAMA_HOSTNAME` | Full hostname for Ollama | `ollama.kwintes.cloud` |
 | `SEARXNG_HOSTNAME` | Full hostname for SearXNG | `searxng.kwintes.cloud` |
-| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `info@kwintes.cloud` |
+| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `tddezeeuw@gmail.com` |
 
 ### n8n Configuration
 
@@ -29,7 +29,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `N8N_PORT` | Port for n8n | `8008` |
 | `N8N_EDITOR_BASE_URL` | Base URL for n8n editor | `https://n8n.kwintes.cloud` |
 | `WEBHOOK_URL` | URL for external webhooks to reach n8n | `https://n8n.kwintes.cloud/` |
-| `GENERIC_TIMEZONE` | Timezone for n8n workflows | `Germany/Berlin` |
+| `GENERIC_TIMEZONE` | Timezone for n8n workflows | `Europe/Amsterdam` |
 | `NODE_FUNCTION_ALLOW_EXTERNAL` | Domains/IPs n8n can connect to | `*` (all) |
 
 ### Supabase Configuration
@@ -71,7 +71,7 @@ This document describes all the environment variables used in the Local AI Stack
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `TZ` | Timezone | `Germany/Berlin` |
+| `TZ` | Timezone | `Europe/Amsterdam` |
 | `LANG` | Language locale | `en_US.UTF-8` |
 | `LC_ALL` | Locale setting | `en_US.UTF-8` |
 

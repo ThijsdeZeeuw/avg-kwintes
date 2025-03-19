@@ -1,15 +1,20 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // List of services to check
+    // Get domain from window.location instead of hardcoded value
+    const domain = window.location.hostname.includes('.')
+        ? window.location.hostname.substring(window.location.hostname.indexOf('.') + 1)
+        : window.location.hostname;
+
+    // List of services to check with dynamic domain
     const services = [
-        { name: 'n8n', url: 'https://n8n.kwintes.cloud/healthz', selector: '.service-card.automation .status' },
-        { name: 'openwebui', url: 'https://openwebui.kwintes.cloud/', selector: '.service-card.ai:nth-child(2) .status' },
-        { name: 'flowise', url: 'https://flowise.kwintes.cloud/', selector: '.service-card.ai:nth-child(3) .status' },
-        { name: 'supabase', url: 'https://supabase.kwintes.cloud/', selector: '.service-card.database:nth-child(4) .status' },
-        { name: 'qdrant', url: 'https://qdrant.kwintes.cloud/healthz', selector: '.service-card.database:nth-child(5) .status' },
-        { name: 'grafana', url: 'https://grafana.kwintes.cloud/', selector: '.service-card.monitoring:nth-child(6) .status' },
-        { name: 'prometheus', url: 'https://prometheus.kwintes.cloud/-/healthy', selector: '.service-card.monitoring:nth-child(7) .status' },
-        { name: 'ollama', url: 'https://ollama.kwintes.cloud/', selector: '.service-card.ai:nth-child(8) .status' },
-        { name: 'searxng', url: 'https://searxng.kwintes.cloud/healthz', selector: '.service-card.search .status' }
+        { name: 'n8n', url: `https://n8n.${domain}/healthz`, selector: '.service-card.automation .status' },
+        { name: 'openwebui', url: `https://openwebui.${domain}/`, selector: '.service-card.ai:nth-child(2) .status' },
+        { name: 'flowise', url: `https://flowise.${domain}/`, selector: '.service-card.ai:nth-child(3) .status' },
+        { name: 'supabase', url: `https://supabase.${domain}/`, selector: '.service-card.database:nth-child(4) .status' },
+        { name: 'qdrant', url: `https://qdrant.${domain}/healthz`, selector: '.service-card.database:nth-child(5) .status' },
+        { name: 'grafana', url: `https://grafana.${domain}/`, selector: '.service-card.monitoring:nth-child(6) .status' },
+        { name: 'prometheus', url: `https://prometheus.${domain}/-/healthy`, selector: '.service-card.monitoring:nth-child(7) .status' },
+        { name: 'ollama', url: `https://ollama.${domain}/`, selector: '.service-card.ai:nth-child(8) .status' },
+        { name: 'searxng', url: `https://searxng.${domain}/healthz`, selector: '.service-card.search .status' }
     ];
     
     // Function to check service status
@@ -47,4 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(() => {
         services.forEach(checkServiceStatus);
     }, 60000);
+    
+    // Log domain for debugging
+    console.log(`Using domain: ${domain}`);
 }); 
