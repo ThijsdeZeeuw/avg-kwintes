@@ -49,7 +49,8 @@ x-init-ollama: &init-ollama
   entrypoint: /bin/sh
   command:
     - "-c"
-    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull gemma3:12b; OLLAMA_HOST=ollama:11434 ollama pull granite-embedding:278m; OLLAMA_HOST=ollama:11434 ollama pull granite3-guardian:8b; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-dense:latest; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-moe:3b; OLLAMA_HOST=ollama:11434 ollama pull granite3.2:latest; OLLAMA_HOST=ollama:11434 ollama pull jeffh/intfloat-multilingual-e5-large-instruct:f16; OLLAMA_HOST=ollama:11434 ollama pull llama3.2-vision; OLLAMA_HOST=ollama:11434 ollama pull minicpm-v:8b; OLLAMA_HOST=ollama:11434 ollama pull mistral-nemo:12b; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text:latest; OLLAMA_HOST=ollama:11434 ollama pull qwen2.5:7b-instruct-q4_K_M; OLLAMA_HOST=ollama:11434 ollama pull reader-lm:latest"
+    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull gemma3:12b; OLLAMA_HOST=ollama:11434 ollama pull granite-embedding:278m"
+    # ;OLLAMA_HOST=ollama:11434 ollama pull granite3-guardian:8b; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-dense:latest; OLLAMA_HOST=ollama:11434 ollama pull granite3.1-moe:3b; OLLAMA_HOST=ollama:11434 ollama pull granite3.2:latest; OLLAMA_HOST=ollama:11434 ollama pull jeffh/intfloat-multilingual-e5-large-instruct:f16; OLLAMA_HOST=ollama:11434 ollama pull llama3.2-vision; OLLAMA_HOST=ollama:11434 ollama pull minicpm-v:8b; OLLAMA_HOST=ollama:11434 ollama pull mistral-nemo:12b; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text:latest; OLLAMA_HOST=ollama:11434 ollama pull qwen2.5:7b-instruct-q4_K_M; OLLAMA_HOST=ollama:11434 ollama pull reader-lm:latest
     # For a larger context length verison of the model, run these commands:
     # echo "FROM qwen2.5:7b-instruct-q4_K_M\n\nPARAMETER num_ctx 8096" > Modelfile
     # ollama create qwen2.5:7b-8k -f ./Modelfile
@@ -135,7 +136,7 @@ services:
     container_name: n8n
     restart: unless-stopped
     ports:
-      - 8000:8000
+      - 8008:8000
     volumes:
       - n8n_storage:/home/node/.n8n
       - ./n8n/backup:/backup

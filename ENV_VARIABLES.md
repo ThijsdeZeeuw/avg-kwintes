@@ -26,7 +26,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `N8N_USER_MANAGEMENT_JWT_SECRET` | JWT secret for n8n user management | Generated random string |
 | `N8N_HOST` | Hostname for n8n | `n8n.kwintes.cloud` |
 | `N8N_PROTOCOL` | Protocol for n8n (http/https) | `https` |
-| `N8N_PORT` | Port for n8n | `8000` |
+| `N8N_PORT` | Port for n8n | `8008` |
 | `N8N_EDITOR_BASE_URL` | Base URL for n8n editor | `https://n8n.kwintes.cloud` |
 | `WEBHOOK_URL` | URL for external webhooks to reach n8n | `https://n8n.kwintes.cloud/` |
 | `GENERIC_TIMEZONE` | Timezone for n8n workflows | `Germany/Berlin` |

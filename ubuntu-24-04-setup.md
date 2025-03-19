@@ -39,7 +39,7 @@ sudo ufw enable
 sudo ufw allow 22    # SSH
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
-sudo ufw allow 8000  # n8n
+sudo ufw allow 8008  # n8n
 sudo ufw allow 3001  # Flowise
 sudo ufw allow 3005  # Grafana
 sudo ufw allow 5678  # n8n webhook

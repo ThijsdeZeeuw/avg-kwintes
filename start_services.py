@@ -147,7 +147,7 @@ def create_interactive_env():
         # n8n domain settings
         'N8N_HOST': default_values.get('N8N_HOST', 'n8n.kwintes.cloud'),
         'N8N_PROTOCOL': default_values.get('N8N_PROTOCOL', 'https'),
-        'N8N_PORT': default_values.get('N8N_PORT', '8000'),
+        'N8N_PORT': default_values.get('N8N_PORT', '8008'),
         'N8N_EDITOR_BASE_URL': default_values.get('N8N_EDITOR_BASE_URL', 'https://n8n.kwintes.cloud'),
         
         # Supabase Configuration

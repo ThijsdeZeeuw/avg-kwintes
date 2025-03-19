@@ -39,7 +39,7 @@ sudo apt install -y ffmpeg portaudio19-dev python3-pyaudio
 ```bash
 # Enable and configure firewall
 sudo ufw enable
-sudo ufw allow 8000  # n8n
+sudo ufw allow 8008  # n8n
 sudo ufw allow 3001  # Flowise
 sudo ufw allow 3000  # Web UI 
 sudo ufw allow 3005  # Grafana
@@ -113,7 +113,7 @@ python3 start_services.py --profile cpu
 docker ps
 
 # Verify services are accessible
-curl http://localhost:8000/healthz  # n8n
+curl http://localhost:8008/healthz  # n8n
 curl http://localhost:6333/healthz  # Qdrant
 curl http://localhost:9090/-/healthy  # Prometheus
 curl http://localhost:54321  # Supabase Studio
