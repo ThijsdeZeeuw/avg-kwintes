@@ -16,7 +16,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `SUPABASE_HOSTNAME` | Full hostname for Supabase | `supabase.kwintes.cloud` |
 | `OLLAMA_HOSTNAME` | Full hostname for Ollama | `ollama.kwintes.cloud` |
 | `SEARXNG_HOSTNAME` | Full hostname for SearXNG | `searxng.kwintes.cloud` |
-| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `admin@kwintes.cloud` |
+| `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `info@kwintes.cloud` |
 
 ### n8n Configuration
 
