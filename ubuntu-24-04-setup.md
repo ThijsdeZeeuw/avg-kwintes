@@ -55,7 +55,7 @@ sudo ufw reload
 
 ```bash
 # Clone repository
-git clone https://github.com/Z4Y/avg-kwintes.git
+git clone https://github.com/ThijsdeZeeuw/avg-kwintes.git
 cd avg-kwintes
 ```
 
