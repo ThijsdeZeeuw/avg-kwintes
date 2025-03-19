@@ -75,13 +75,6 @@ This document describes all the environment variables used in the Local AI Stack
 | `LANG` | Language locale | `en_US.UTF-8` |
 | `LC_ALL` | Locale setting | `en_US.UTF-8` |
 
-### Whisper Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `WHISPER_MODEL` | Model size for Whisper | `base` |
-| `WHISPER_DEVICE` | Device for Whisper (cpu/cuda) | `cpu` |
-
 ## Advanced Configuration
 
 For additional configuration options, refer to the comments in the `.env.example` file or the documentation for the specific services.

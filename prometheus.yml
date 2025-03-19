@@ -17,11 +17,6 @@ scrape_configs:
       - targets: ['qdrant:6333']
     metrics_path: '/metrics'
 
-  - job_name: 'whisper'
-    static_configs:
-      - targets: ['whisper:9000']
-    metrics_path: '/metrics'
-
   - job_name: 'ollama'
     static_configs:
       - targets: ['ollama:11434']

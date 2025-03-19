@@ -196,10 +196,6 @@ def create_interactive_env():
         'LANG': default_values.get('LANG', 'en_US.UTF-8'),
         'LC_ALL': default_values.get('LC_ALL', 'en_US.UTF-8'),
         
-        # Whisper Configuration
-        'WHISPER_MODEL': default_values.get('WHISPER_MODEL', 'base'),
-        'WHISPER_DEVICE': default_values.get('WHISPER_DEVICE', 'cpu'),
-        
         # Python Configuration
         'PYTHON_PATH': default_values.get('PYTHON_PATH', '/usr/bin/python3')
     }

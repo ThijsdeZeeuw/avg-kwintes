@@ -184,5 +184,4 @@ After installation, you can access the following services:
 - Supabase Studio: http://localhost:54321 or https://studio.supabase.your-domain.com
 - Grafana: https://grafana.your-domain.com
 - Prometheus: https://prometheus.your-domain.com
-- Whisper API: https://whisper.your-domain.com
 - Qdrant API: https://qdrant.your-domain.com 

@@ -124,14 +124,6 @@ prometheus.kwintes.cloud {
     }
 }
 
-# Whisper API
-whisper.kwintes.cloud {
-    reverse_proxy whisper:9000
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
 # Qdrant API
 qdrant.kwintes.cloud {
     reverse_proxy qdrant:6333

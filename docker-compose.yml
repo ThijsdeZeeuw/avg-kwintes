@@ -9,7 +9,6 @@ volumes:
   valkey-data:
   prometheus_data:
   grafana_data:
-  whisper_data:
 
 x-n8n: &service-n8n
   image: n8nio/n8n:latest
@@ -130,25 +129,6 @@ services:
       - ./data/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
-
-  whisper:
-    image: openai/whisper:latest
-    container_name: whisper
-    restart: unless-stopped
-    ports:
-      - 9000:9000
-    environment:
-      - WHISPER_MODEL=${WHISPER_MODEL:-base}
-      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
-    volumes:
-      - whisper_data:/app/data
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   n8n:
     <<: *service-n8n

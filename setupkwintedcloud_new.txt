@@ -1,6 +1,6 @@
 # Local AI Stack Setup Guide
 # Created for Kwintes FA & 
-# Includes: n8n, Ollama, Qdrant, Prometheus, Grafana, Whisper, Supabase, and Python
+# Includes: n8n, Ollama, Qdrant, Prometheus, Grafana, Supabase, and Python
 
 ## Prerequisites
 1. Install PuTTY (for Windows users)
@@ -181,7 +181,6 @@ If you experience connection issues, verify your domain is properly configured a
 - All services are configured to use HTTPS through Caddy
 - Ollama runs locally for AI processing
 - Qdrant is available for vector storage
-- Whisper is configured for local speech-to-text processing
 - Python environment is set up for custom scripts and integrations
 - Monitoring is configured with Prometheus and Grafana
 - Supabase provides a complete backend solution with PostgreSQL 
