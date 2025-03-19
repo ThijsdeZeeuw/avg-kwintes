@@ -3,33 +3,57 @@
 # This script fixes the Caddy configuration and domain issues
 
 # Check if running as root
-if [ "$EUID" -ne 0 ] && [ -z "$SUDO_USER" ]; then
-  echo "Please run as root or with sudo"
-  exit 1
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This script must be run as root or with sudo"
+    exit 1
 fi
 
 # Set working directory
-if [ -d "/root/avg-kwintes" ]; then
-  cd /root/avg-kwintes
-else
-  echo "Error: Cannot find /root/avg-kwintes directory."
-  echo "This script is intended to run on the VPS in the correct directory."
-  exit 1
+WORKING_DIR="/root/avg-kwintes"
+if [ ! -d "$WORKING_DIR" ]; then
+    echo "Working directory not found: $WORKING_DIR"
+    echo "Please run this script from the correct directory"
+    exit 1
 fi
+
+cd "$WORKING_DIR"
 
 echo "===== Starting Caddy and Subdomain Fix ====="
 
 # 1. Update .env file with correct email and timezone
 echo "Updating .env file..."
 if [ -f ".env" ]; then
-  sed -i 's/LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=tddezeeuw@gmail.com/' .env
-  sed -i 's/TZ=.*/TZ=Europe\/Amsterdam/' .env
-  echo "- Updated LETSENCRYPT_EMAIL and TZ in .env file"
+    # Check if LETSENCRYPT_EMAIL already exists
+    if grep -q "LETSENCRYPT_EMAIL=" ".env"; then
+        # Update existing entry
+        sed -i 's/LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=tddezeeuw@gmail.com/' ".env"
+    else
+        # Add new entry
+        echo "LETSENCRYPT_EMAIL=tddezeeuw@gmail.com" >> ".env"
+    fi
+    
+    # Set timezone
+    if grep -q "TZ=" ".env"; then
+        sed -i 's/TZ=.*/TZ=Europe\/Amsterdam/' ".env"
+    else
+        echo "TZ=Europe/Amsterdam" >> ".env"
+    fi
+
+    # Modify n8n port to avoid conflict with Supabase
+    if grep -q "N8N_PORT=" ".env"; then
+        sed -i 's/N8N_PORT=.*/N8N_PORT=5678/' ".env"
+    else
+        echo "N8N_PORT=5678" >> ".env"
+    fi
 else
-  cp .env.example .env
-  sed -i 's/LETSENCRYPT_EMAIL=.*/LETSENCRYPT_EMAIL=tddezeeuw@gmail.com/' .env
-  sed -i 's/TZ=.*/TZ=Europe\/Amsterdam/' .env
-  echo "- Created .env file from example and updated settings"
+    # Create .env file
+    cat > ".env" << EOF
+DOMAIN_NAME=kwintes.cloud
+LETSENCRYPT_EMAIL=tddezeeuw@gmail.com
+TZ=Europe/Amsterdam
+N8N_PORT=5678
+EOF
+    echo "Created new .env file"
 fi
 
 # 2. Apply the updated Caddyfile
@@ -58,7 +82,7 @@ cat > Caddyfile << 'EOL'
 
 # N8N
 {$N8N_HOSTNAME} {
-    reverse_proxy n8n:8000
+    reverse_proxy n8n:5678
     tls {
         protocols tls1.2 tls1.3
     }
@@ -190,13 +214,19 @@ cat > docker-compose.override.yml << 'EOL'
 version: '3'
 
 services:
+  # Fix n8n port mapping to avoid conflict with Supabase
+  n8n:
+    ports:
+      - 5678:5678
+    environment:
+      - N8N_PORT=5678
+      - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+
   caddy:
     image: docker.io/library/caddy:2-alpine
     ports:
       - "80:80"
       - "443:443"
-    networks:
-      - monitoring
     restart: unless-stopped
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
@@ -204,15 +234,26 @@ services:
       - caddy-data:/data:rw
       - caddy-config:/config:rw
     environment:
-      - N8N_HOSTNAME=${N8N_HOSTNAME:-"n8n.${DOMAIN_NAME:-kwintes.cloud}"}
-      - WEBUI_HOSTNAME=${WEBUI_HOSTNAME:-"openwebui.${DOMAIN_NAME:-kwintes.cloud}"}
-      - FLOWISE_HOSTNAME=${FLOWISE_HOSTNAME:-"flowise.${DOMAIN_NAME:-kwintes.cloud}"}
-      - OLLAMA_HOSTNAME=${OLLAMA_HOSTNAME:-"ollama.${DOMAIN_NAME:-kwintes.cloud}"}
-      - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-"supabase.${DOMAIN_NAME:-kwintes.cloud}"}
-      - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-"searxng.${DOMAIN_NAME:-kwintes.cloud}"}
+      - N8N_HOSTNAME=n8n.${DOMAIN_NAME:-kwintes.cloud}
+      - WEBUI_HOSTNAME=openwebui.${DOMAIN_NAME:-kwintes.cloud}
+      - FLOWISE_HOSTNAME=flowise.${DOMAIN_NAME:-kwintes.cloud}
+      - OLLAMA_HOSTNAME=ollama.${DOMAIN_NAME:-kwintes.cloud}
+      - SUPABASE_HOSTNAME=supabase.${DOMAIN_NAME:-kwintes.cloud}
+      - SEARXNG_HOSTNAME=searxng.${DOMAIN_NAME:-kwintes.cloud}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-tddezeeuw@gmail.com}
       - TZ=${TZ:-Europe/Amsterdam}
       - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
+    networks:
+      - monitoring
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
 EOL
 echo "- Created docker-compose.override.yml"
 
@@ -237,7 +278,7 @@ echo "- Stopping containers..."
 docker compose down
 
 echo "- Starting containers with fixed configuration..."
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
 
 # 6. Check service status
 echo "Checking service status..."

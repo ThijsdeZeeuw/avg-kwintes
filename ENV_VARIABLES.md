@@ -2,6 +2,8 @@
 
 This document describes all the environment variables used in the Local AI Stack.
 
+> **Note:** This project is based on work from [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged) and [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) with customizations and improvements.
+
 ## Core Configuration
 
 ### Domain and URL Settings
@@ -26,7 +28,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `N8N_USER_MANAGEMENT_JWT_SECRET` | JWT secret for n8n user management | Generated random string |
 | `N8N_HOST` | Hostname for n8n | `n8n.kwintes.cloud` |
 | `N8N_PROTOCOL` | Protocol for n8n (http/https) | `https` |
-| `N8N_PORT` | Port for n8n | `8008` |
+| `N8N_PORT` | Port for n8n | `5678` (changed from 8008 to avoid conflict with Supabase) |
 | `N8N_EDITOR_BASE_URL` | Base URL for n8n editor | `https://n8n.kwintes.cloud` |
 | `WEBHOOK_URL` | URL for external webhooks to reach n8n | `https://n8n.kwintes.cloud/` |
 | `GENERIC_TIMEZONE` | Timezone for n8n workflows | `Europe/Amsterdam` |
@@ -75,6 +77,23 @@ This document describes all the environment variables used in the Local AI Stack
 | `LANG` | Language locale | `en_US.UTF-8` |
 | `LC_ALL` | Locale setting | `en_US.UTF-8` |
 
+## Port Configuration
+
+To avoid port conflicts (particularly between n8n and Supabase), we've changed some default port mappings. Here are the main services and their ports:
+
+| Service | Internal Port | Host Port | Notes |
+|---------|---------------|-----------|-------|
+| n8n | 5678 | 5678 | Changed from 8000/8008 to avoid conflict with Supabase |
+| Supabase API | 8000 | 8000 | Kong API Gateway |
+| Flowise | 3001 | 3001 | |
+| OpenWebUI | 8080 | 3000 | |
+| Grafana | 3000 | 3005 | |
+| Prometheus | 9090 | 9090 | |
+| Qdrant | 6333 | 6333 | |
+| Ollama | 11434 | 11434 | |
+| SearXNG | 8080 | 8080 | |
+| Caddy | 80/443 | 80/443 | Reverse proxy for all services |
+
 ## Advanced Configuration
 
 For additional configuration options, refer to the comments in the `.env.example` file or the documentation for the specific services.
@@ -82,4 +101,10 @@ For additional configuration options, refer to the comments in the `.env.example
 - n8n: https://docs.n8n.io/hosting/environment-variables/
 - Supabase: https://supabase.com/docs/guides/self-hosting/docker
 - Flowise: https://docs.flowiseai.com/deployment
-- Grafana: https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/ 
+- Grafana: https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/
+
+---
+
+Adapted and customized from the original projects:
+- [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged)
+- [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) 

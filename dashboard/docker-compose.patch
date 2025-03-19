@@ -66,6 +66,14 @@ version: '3'
 # This patch file is applied to docker-compose.yml to fix Caddy configuration
 
 services:
+  # Fix n8n port conflict with Supabase
+  n8n:
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+
   caddy:
     container_name: caddy
     image: docker.io/library/caddy:2-alpine

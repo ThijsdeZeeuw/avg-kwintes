@@ -2,6 +2,8 @@
 
 This directory contains the necessary files for setting up the Kwintes.cloud dashboard and Docker image extraction tools.
 
+> **Note:** This project is based on work from [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged) and [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) with customizations and improvements.
+
 ## Dashboard Setup
 
 The dashboard provides a centralized overview of all the AI services running in your Kwintes.cloud infrastructure.
@@ -59,6 +61,24 @@ The Docker image extraction tools allow you to pull and save Docker images for u
    sudo ./dashboard/docker_extract.sh
    ```
 
+## Fix for Port Conflicts
+
+There is a known port conflict between n8n and Supabase, as both services want to use port 8000 internally. To resolve this, we've created a fix script that:
+
+1. Changes n8n to use port 5678 instead of 8000/8008
+2. Updates the Caddyfile and proxy settings
+3. Creates necessary overrides in docker-compose
+
+To apply the fix:
+
+```bash
+# Make the script executable
+chmod +x dashboard/fix_caddy.sh
+
+# Run the fix script
+sudo ./dashboard/fix_caddy.sh
+```
+
 ## Troubleshooting
 
 If the dashboard isn't accessible:
@@ -70,5 +90,17 @@ If Docker image extraction fails:
 1. Ensure Docker is running
 2. Check for network connectivity
 3. Verify Docker Hub credentials if needed
+
+If n8n is not accessible:
+1. Make sure port 5678 is allowed in your firewall: `sudo ufw allow 5678`
+2. Verify that n8n is running: `docker ps | grep n8n`
+3. Check n8n logs: `docker logs n8n`
+4. Run the fix script: `sudo ./dashboard/fix_caddy.sh`
+
+---
+
+Adapted and customized from the original projects:
+- [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged)
+- [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack)
 
 Created and maintained by Z4Y 

@@ -2,6 +2,8 @@
 
 This guide provides specific instructions for setting up the Local AI Stack on Ubuntu 24.04 LTS.
 
+> **Note:** This project is based on work from [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged) and [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) with customizations and improvements.
+
 ## Prerequisites
 
 - Ubuntu 24.04 LTS (Noble Numbat)
@@ -39,10 +41,10 @@ sudo ufw enable
 sudo ufw allow 22    # SSH
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
-sudo ufw allow 8008  # n8n
+sudo ufw allow 5678  # n8n (changed from 8008 to avoid conflict with Supabase)
 sudo ufw allow 3001  # Flowise
 sudo ufw allow 3005  # Grafana
-sudo ufw allow 5678  # n8n webhook
+sudo ufw allow 8000  # Supabase API
 sudo ufw allow 8080  # SearXNG
 sudo ufw allow 11434 # Ollama
 sudo ufw allow 6333  # Qdrant
@@ -89,6 +91,7 @@ Make sure to update at least the following values:
   - `DOMAIN_NAME`: Your main domain (e.g., `yourdomain.com`)
   - `SUBDOMAIN`: The subdomain for n8n (e.g., `n8n`)
   - `N8N_HOST` and `N8N_HOSTNAME`: The hostname for your n8n instance
+  - `N8N_PORT`: Set to 5678 to avoid conflict with Supabase's use of port 8000
 
 - Authentication Credentials:
   - `FLOWISE_USERNAME` and `FLOWISE_PASSWORD`: Credentials for Flowise
@@ -245,6 +248,15 @@ If you're experiencing issues connecting to external APIs:
    docker restart caddy
    ```
 
+6. **Port Conflicts**
+
+   If you see port conflicts between services (particularly n8n and Supabase which both want to use port 8000):
+   
+   ```bash
+   # Apply the fix_caddy.sh script
+   sudo ./dashboard/fix_caddy.sh
+   ```
+
 ## Accessing Services
 
 After installation, you can access the following services:
@@ -259,3 +271,9 @@ After installation, you can access the following services:
 - Prometheus: https://prometheus.yourdomain.com
 - Whisper API: https://whisper.yourdomain.com
 - Qdrant API: https://qdrant.yourdomain.com 
+
+---
+
+Adapted and customized from the original projects:
+- [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged)
+- [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) 

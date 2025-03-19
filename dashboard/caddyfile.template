@@ -21,7 +21,7 @@
 
 # N8N
 {$N8N_HOSTNAME} {
-    reverse_proxy n8n:8000
+    reverse_proxy n8n:5678
     tls {
         protocols tls1.2 tls1.3
     }
