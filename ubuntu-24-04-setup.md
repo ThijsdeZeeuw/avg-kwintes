@@ -41,14 +41,14 @@ sudo ufw enable
 sudo ufw allow 22    # SSH
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
-sudo ufw allow 5678  # n8n (changed from 8008 to avoid conflict with Supabase)
+sudo ufw allow 5678  # n8n (using port 5678 to avoid conflict with Supabase)
 sudo ufw allow 3001  # Flowise
-sudo ufw allow 3005  # Grafana
+sudo ufw allow 8080  # Open WebUI
+sudo ufw allow 3000  # Grafana
 sudo ufw allow 8000  # Supabase API
-sudo ufw allow 8080  # SearXNG
+sudo ufw allow 9090  # Prometheus
 sudo ufw allow 11434 # Ollama
 sudo ufw allow 6333  # Qdrant
-sudo ufw allow 9090  # Prometheus
 sudo ufw allow 54321 # Supabase Studio
 sudo ufw reload
 ```
@@ -96,7 +96,7 @@ Make sure to update at least the following values:
 - Authentication Credentials:
   - `FLOWISE_USERNAME` and `FLOWISE_PASSWORD`: Credentials for Flowise
   - `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASS`: Credentials for Grafana
-  - `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD`: Credentials for Supabase dashboard
+  - `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD`: Credentials for Supabase Studio
 
 - System Settings:
   - `LETSENCRYPT_EMAIL`: Your email for Let's Encrypt certificates
@@ -116,59 +116,36 @@ This will:
 3. Generate secure keys for SearXNG
 4. Start Supabase and the local AI stack
 
-## Step 6: Set Up the Services Dashboard
+## Step 6: Apply Configuration Fixes
 
-Now you'll set up a centralized dashboard at your root domain. This dashboard will automatically use the domain configured in your `.env` file:
-
-```bash
-# Make the setup script executable
-chmod +x dashboard/setup_dashboard.sh
-
-# Run the setup script
-sudo ./dashboard/setup_dashboard.sh
-```
-
-The script will:
-1. Create the dashboard files with a modern, responsive UI
-2. Update the Caddyfile to serve the dashboard at your root domain
-3. Configure Docker Compose to mount the dashboard directory
-4. Restart the Caddy service to apply changes
-
-After running the script, you can access the main dashboard at your root domain (e.g., `https://yourdomain.com`). This dashboard provides:
-- Links to all services
-- Status indicators showing if each service is running
-- Service descriptions and categories
-
-If the script fails, you can perform these steps manually:
+After setting up the services, apply the necessary fixes for port conflicts and configurations:
 
 ```bash
-# Create dashboard directory
-mkdir -p dashboard
+# Make the fix_config.sh script executable
+chmod +x fix_config.sh
 
-# Edit the Caddyfile to add root domain
-nano Caddyfile
-# Add the following before the first service entry:
-# 
-# # Root domain dashboard
-# {$DOMAIN_NAME} {
-#     root * /etc/caddy/dashboard
-#     file_server
-#     tls {
-#         protocols tls1.2 tls1.3
-#     }
-# }
-
-# Edit docker-compose.yml to mount dashboard
-nano docker-compose.yml
-# Add this line in the caddy service, under volumes:
-#       - ./dashboard:/etc/caddy/dashboard:ro
-# 
-# Also add this environment variable:
-#       - DOMAIN_NAME=${DOMAIN_NAME:-yourdomain.com}
-
-# Restart Caddy to apply changes
-docker restart caddy
+# Run the fix script
+sudo ./fix_config.sh
 ```
+
+This enhanced configuration script will:
+
+1. Automatically detect your environment (including domain name)
+2. Update your .env file with correct settings
+3. Configure optimal reverse proxy settings in Caddyfile
+4. Fix port mappings in docker-compose.yml
+5. Add necessary environment variables for external API access
+6. Ensure all services use the monitoring network
+7. Install and configure Docker and Docker Compose if needed
+8. Generate helpful utility scripts:
+   - update_stack.sh - For easy updates
+   - backup_stack.sh - For data backups
+
+The script includes robust error handling and will guide you through the setup process with clear, colorful output.
+
+After running the script, you can access the services at the configured subdomains (e.g., https://n8n.yourdomain.com) or via IP address with appropriate ports.
+
+> **Note**: The root domain (e.g., yourdomain.com) will automatically redirect to n8n (https://n8n.yourdomain.com).
 
 ## Connecting n8n to External APIs
 
@@ -201,13 +178,13 @@ If your n8n service is still configured with the old port mapping (showing as `0
 
 ```bash
 # Run the fix script
-sudo ./dashboard/fix_caddy.sh
+sudo ./apply_fixes.sh
 ```
 
 This will:
 1. Update your .env file to set N8N_PORT=5678
-2. Create a docker-compose override to use the correct port
-3. Fix the Caddyfile to point to the right port
+2. Update the Caddyfile to point to the right port
+3. Update docker-compose.yml with the correct port mappings
 4. Restart all services
 
 ## Troubleshooting
@@ -250,16 +227,13 @@ This will:
    /usr/local/bin/docker-compose -p localai logs -f [service_name]
    ```
 
-5. **Dashboard Not Loading**
+5. **n8n Interface Not Loading**
 
-   If the dashboard at your root domain is not loading:
+   If the n8n interface at your root domain is not loading:
    
    ```bash
    # Check Caddy logs
    docker logs caddy
-   
-   # Verify the dashboard files exist
-   ls -la dashboard/
    
    # Restart Caddy
    docker restart caddy
@@ -270,8 +244,8 @@ This will:
    If you see port conflicts between services (particularly n8n and Supabase which both want to use port 8000):
    
    ```bash
-   # Apply the fix_caddy.sh script
-   sudo ./dashboard/fix_caddy.sh
+   # Apply the apply_fixes.sh script
+   sudo ./apply_fixes.sh
    ```
 
 7. **n8n Not Working**
@@ -283,7 +257,7 @@ This will:
    docker compose down
    
    # Apply the fix and restart
-   sudo ./dashboard/fix_caddy.sh
+   sudo ./apply_fixes.sh
    
    # Check n8n container status
    docker ps | grep n8n
@@ -297,7 +271,6 @@ After installation, you can access the following services:
 
 ### Via Domain Names (with configured DNS)
 
-- Main Dashboard: https://kwintes.cloud
 - n8n: https://n8n.kwintes.cloud
 - Web UI: https://openwebui.kwintes.cloud
 - Flowise: https://flowise.kwintes.cloud
@@ -311,13 +284,13 @@ After installation, you can access the following services:
 
 ### Via IP Address (replace 46.202.155.155 with your VPS IP)
 
-- Main Dashboard: http://46.202.155.155
-- n8n: http://46.202.155.155:5678 (NOT port 8008)
-- Web UI (Open WebUI): http://46.202.155.155:3000
+- Main Entry Point: http://46.202.155.155 (redirects to n8n)
+- n8n: http://46.202.155.155:5678
+- Web UI (Open WebUI): http://46.202.155.155:8080
 - Flowise: http://46.202.155.155:3001
 - Supabase API: http://46.202.155.155:8000
 - Supabase Studio: http://46.202.155.155:54321
-- Grafana: http://46.202.155.155:3005
+- Grafana: http://46.202.155.155:3000
 - Prometheus: http://46.202.155.155:9090
 - Ollama API: http://46.202.155.155:11434
 - Qdrant API: http://46.202.155.155:6333
@@ -334,10 +307,17 @@ n8n:
   container_name: n8n
   restart: unless-stopped
   ports:
-    - 5678:5678  # Changed from 8008:8000 to avoid conflict with Supabase
+    - 5678:5678  # Using port 5678 to avoid conflict with Supabase
   environment:
     - N8N_PORT=5678
     - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+    - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+    - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    - N8N_METRICS_ENABLED=true
+    # These settings ensure external API access works properly
+    - N8N_SECURE_COOKIE=false 
+    - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
+    - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/
   volumes:
     - n8n_storage:/home/node/.n8n
     - ./n8n/backup:/backup

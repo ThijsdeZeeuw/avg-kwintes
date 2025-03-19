@@ -2,6 +2,8 @@
 
 A comprehensive self-hosted AI stack designed for VPS deployment, featuring n8n, Ollama, Qdrant, Prometheus, Grafana, Whisper, and more.
 
+> **Note:** This project is based on work from [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged) and [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) with customizations and improvements.
+
 ## Features
 
 - ✅ [**n8n**](https://n8n.io/) - Low-code automation platform with 400+ integrations
@@ -14,7 +16,7 @@ A comprehensive self-hosted AI stack designed for VPS deployment, featuring n8n,
 - ✅ [**Supabase**](https://supabase.com/) - Database and authentication
 - ✅ [**Flowise**](https://flowiseai.com/) - AI agent builder
 - ✅ [**Open WebUI**](https://openwebui.com/) - ChatGPT-like interface
-- ✅ [**Central Dashboard**](#central-dashboard) - Service overview and status monitoring
+- ✅ [**SearXNG**](https://docs.searxng.org/) - Privacy-focused search engine
 
 ## Prerequisites
 
@@ -44,13 +46,13 @@ sudo apt update && sudo apt install -y nano git docker.io python3 python3-pip do
 3. Configure firewall:
 ```bash
 sudo ufw enable
-sudo ufw allow 8000  # n8n
+sudo ufw allow 5678  # n8n (using port 5678 to avoid conflict with Supabase)
 sudo ufw allow 3001  # Flowise
-sudo ufw allow 3000  # Web UI & Grafana
-sudo ufw allow 5678  # n8n webhook
+sudo ufw allow 8080  # Open WebUI
+sudo ufw allow 3000  # Grafana
 sudo ufw allow 80    # HTTP
 sudo ufw allow 443   # HTTPS
-sudo ufw allow 8080  # SearXNG (if needed)
+sudo ufw allow 8000  # Supabase API (Kong)
 sudo ufw allow 11434 # Ollama
 sudo ufw allow 6333  # Qdrant
 sudo ufw allow 9090  # Prometheus
@@ -76,25 +78,40 @@ The script will:
 - Set up monitoring with Prometheus and Grafana
 - Initialize all services
 
-6. Set up the central dashboard:
+6. Apply port and configuration fixes:
 ```bash
-chmod +x dashboard/setup_dashboard.sh
-sudo ./dashboard/setup_dashboard.sh
+# Make the script executable
+chmod +x fix_config.sh
+
+# Run the configuration fix script
+sudo ./fix_config.sh
 ```
 
-This will create a beautiful dashboard at your root domain (e.g., `https://kwintes.cloud`) that displays all your AI services with their status.
+Our enhanced configuration script will:
+- Automatically detect your environment and requirements
+- Configure all services for both local and external access
+- Ensure proper external API connectivity for n8n
+- Generate helpful utility scripts for maintenance
 
-## Central Dashboard
+The script requires minimal intervention and provides clear, colorful output throughout the process.
 
-The central dashboard provides a modern, user-friendly interface to access all services from your root domain. Features include:
+## Utility Scripts
 
-- **Service Overview**: Cards for each available service with descriptions
-- **Live Status**: Real-time status indicators showing if services are running
-- **Categorized Services**: Visual grouping by function (AI, automation, database, monitoring)
-- **Direct Access**: One-click links to each service's interface
-- **Responsive Design**: Works on desktop and mobile devices
+The configuration process creates several helpful utility scripts:
 
-![Dashboard Screenshot](https://example.com/dashboard-screenshot.jpg)
+### Update Script
+To update your Local AI Stack to the latest version:
+```bash
+sudo ./update_stack.sh
+```
+This script will pull the latest Docker images, apply necessary configuration fixes, and restart all services.
+
+### Backup Script
+To create a complete backup of your Local AI Stack data:
+```bash
+sudo ./backup_stack.sh
+```
+This script will back up all Docker volumes, configuration files, and secrets to a timestamped archive.
 
 ## Ollama Models
 
@@ -129,7 +146,6 @@ These models are automatically downloaded during the initial setup process. The 
 
 After installation, you can access the following services:
 
-- Main Dashboard: https://your-domain.com
 - n8n: https://n8n.kwintes.cloud
 - Web UI: https://openwebui.kwintes.cloud
 - Flowise: https://flowise.kwintes.cloud
@@ -212,16 +228,11 @@ docker-compose -p localai ps
 - Check Prometheus targets
 - Review service health endpoints
 
-5. Dashboard Issues:
+5. Service Restart:
 ```bash
-# Check Caddy logs
-docker logs caddy
-
-# Verify the dashboard files
-ls -la dashboard/
-
-# Restart Caddy
-docker restart caddy
+# Restart all services
+docker compose down
+docker compose up -d
 ```
 
 ## Support
@@ -363,3 +374,28 @@ This system is particularly valuable for GGZ (Mental Healthcare) and FBW (Forens
    - Improved risk assessment
    - Better tracking of client progress
    - Enhanced decision support
+
+## Port Configuration
+
+To avoid port conflicts between services, we've set up consistent port mappings:
+
+```bash
+sudo ufw enable
+sudo ufw allow 5678  # n8n (using port 5678 to avoid conflict with Supabase)
+sudo ufw allow 3001  # Flowise
+sudo ufw allow 8080  # Open WebUI
+sudo ufw allow 3000  # Grafana
+sudo ufw allow 80    # HTTP
+sudo ufw allow 443   # HTTPS
+sudo ufw allow 8000  # Supabase API (Kong)
+sudo ufw allow 11434 # Ollama
+sudo ufw allow 6333  # Qdrant
+sudo ufw allow 9090  # Prometheus
+sudo ufw allow 54321 # Supabase Studio
+sudo ufw reload
+```
+
+Key points about our port configuration:
+1. n8n uses port 5678 instead of 8000 to avoid conflicts with Supabase
+2. Each service uses consistent internal and external port mappings
+3. Port settings are handled automatically by the setup scripts

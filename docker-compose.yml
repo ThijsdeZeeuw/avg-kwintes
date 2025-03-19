@@ -23,14 +23,16 @@ x-n8n: &service-n8n
     - N8N_ENCRYPTION_KEY
     - N8N_USER_MANAGEMENT_JWT_SECRET
     - N8N_HOST=${N8N_HOST:-n8n.kwintes.cloud}
-    - N8N_PROTOCOL=${N8N_PROTOCOL}
+    - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
     - N8N_PORT=${N8N_PORT:-5678}
-    - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
+    - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-https://n8n.kwintes.cloud}
     - N8N_METRICS_ENABLED=true
     - N8N_METRICS_PORT=9090
     - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/
-    - GENERIC_TIMEZONE=${TZ:-Germany/Berlin}
+    - GENERIC_TIMEZONE=${TZ:-Europe/Amsterdam}
     - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    - N8N_SECURE_COOKIE=false
+    - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
 
 x-ollama: &service-ollama
   image: ollama/ollama:latest
@@ -40,6 +42,8 @@ x-ollama: &service-ollama
     - 11434:11434
   volumes:
     - ollama_storage:/root/.ollama
+  networks:
+    - monitoring
 
 x-init-ollama: &init-ollama
   image: ollama/ollama:latest
@@ -55,6 +59,8 @@ x-init-ollama: &init-ollama
     # echo "FROM qwen2.5:7b-instruct-q4_K_M\n\nPARAMETER num_ctx 8096" > Modelfile
     # ollama create qwen2.5:7b-8k -f ./Modelfile
     # Change the name of the LLM and num_ctx as you see fit.
+  networks:
+    - monitoring
 
 services:
   flowise:
@@ -69,7 +75,7 @@ services:
         - METRICS_PROVIDER=${METRICS_PROVIDER:-prometheus}
         - METRICS_PORT=9090
         - METRICS_INCLUDE_NODE_METRICS=${METRICS_INCLUDE_NODE_METRICS:-true}
-        - TZ=${TZ:-Germany/Berlin}
+        - TZ=${TZ:-Europe/Amsterdam}
     ports:
         - 3001:3001
     extra_hosts:
@@ -77,17 +83,21 @@ services:
     volumes:
         - ~/.flowise:/root/.flowise
     entrypoint: /bin/sh -c "sleep 3; flowise start"
+    networks:
+      - monitoring
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
     restart: unless-stopped
     container_name: open-webui
     ports:
-      - "3000:8080"
+      - "8080:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - open-webui:/app/backend/data
+    networks:
+      - monitoring
 
   n8n-import:
     <<: *service-n8n
@@ -97,7 +107,9 @@ services:
       - "-c"
       - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
     volumes:
-      - ./n8n/backup:/backup  
+      - ./n8n/backup:/backup
+    networks:
+      - monitoring  
 
   prometheus:
     image: prom/prometheus:latest
@@ -113,23 +125,27 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - monitoring
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
     ports:
-      - 3005:3000
+      - 3000:3000
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASS:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - TZ=${TZ:-Germany/Berlin}
+      - TZ=${TZ:-Europe/Amsterdam}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./data/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+    networks:
+      - monitoring
 
   n8n:
     <<: *service-n8n
@@ -161,15 +177,12 @@ services:
   caddy:
     container_name: caddy
     image: docker.io/library/caddy:2-alpine
-    networks:
-      - monitoring
     ports:
       - "80:80"
       - "443:443"
     restart: unless-stopped
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./dashboard:/etc/caddy/dashboard:ro
       - caddy-data:/data:rw
       - caddy-config:/config:rw
     environment:
@@ -180,7 +193,7 @@ services:
       - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-"supabase.${DOMAIN_NAME:-kwintes.cloud}"}
       - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-"searxng.${DOMAIN_NAME:-kwintes.cloud}"}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-tddezeeuw@gmail.com}
-      - TZ=${TZ:-Germany/Berlin}
+      - TZ=${TZ:-Europe/Amsterdam}
       - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
     cap_drop:
       - ALL
@@ -191,6 +204,8 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
+    networks:
+      - monitoring
 
   redis:
     container_name: redis
@@ -210,6 +225,8 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
+    networks:
+      - monitoring
 
   searxng:
     container_name: searxng
@@ -234,10 +251,14 @@ services:
       options:
         max-size: "1m"
         max-file: "1"      
+    networks:
+      - monitoring
 
   ollama-cpu:
     profiles: ["cpu"]
     <<: *service-ollama
+    networks:
+      - monitoring
 
   ollama-gpu:
     profiles: ["gpu-nvidia"]
@@ -249,6 +270,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    networks:
+      - monitoring
 
   ollama-gpu-amd:
     profiles: ["gpu-amd"]
@@ -257,18 +280,24 @@ services:
     devices:
       - "/dev/kfd"
       - "/dev/dri"
+    networks:
+      - monitoring
 
   ollama-pull-llama-cpu:
     profiles: ["cpu"]
     <<: *init-ollama
     depends_on:
       - ollama-cpu
+    networks:
+      - monitoring
 
   ollama-pull-llama-gpu:
     profiles: ["gpu-nvidia"]
     <<: *init-ollama
     depends_on:
       - ollama-gpu
+    networks:
+      - monitoring
 
   ollama-pull-llama-gpu-amd:
     profiles: [gpu-amd]
@@ -276,6 +305,8 @@ services:
     image: ollama/ollama:rocm
     depends_on:
      - ollama-gpu-amd
+    networks:
+      - monitoring
 
 networks:
   monitoring:

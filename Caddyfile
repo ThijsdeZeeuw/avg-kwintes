@@ -10,10 +10,9 @@
     }
 }
 
-# Root domain dashboard
+# Root domain redirect to n8n
 {$DOMAIN_NAME} {
-    root * /etc/caddy/dashboard
-    file_server
+    redir https://n8n.{$DOMAIN_NAME} permanent
     tls {
         protocols tls1.2 tls1.3
     }
