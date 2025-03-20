@@ -61,49 +61,44 @@ git clone https://github.com/ThijsdeZeeuw/avg-kwintes.git
 cd avg-kwintes
 ```
 
-## Step 4: Environment Setup
+## Step 4: Pre-Configuration
 
-The most user-friendly method is to use the interactive setup option:
+Before setting up the environment, run the pre-configuration script to ensure all prerequisites are met and port conflicts are resolved:
+
+```bash
+# Make the script executable
+chmod +x fix_config.sh
+
+# Run the configuration preparation script
+sudo ./fix_config.sh
+```
+
+This script will:
+
+1. Check and install required packages (Docker, Docker Compose, net-tools)
+2. Configure firewall settings for all needed ports
+3. Detect any port conflicts and update configuration accordingly
+4. Create a basic .env file if one doesn't exist
+5. Generate utility scripts for updates and backups
+
+## Step 5: Environment Setup
+
+Now run the interactive setup script to finish configuration:
 
 ```bash
 # Run the setup script with interactive mode
 python3 start_services.py --interactive
 ```
 
-This will guide you through the configuration, prompting for important settings:
+This will guide you through the remaining configuration steps, prompting for important settings:
 - Your main domain name
 - Email for Let's Encrypt certificates
 - Credentials for various services
 - System configuration
 
-Alternatively, you can manually create and edit the `.env` file:
+## Step 6: Start Services
 
-```bash
-# Copy the example file
-cp .env.example .env
-
-# Edit the file with your settings
-nano .env
-```
-
-Make sure to update at least the following values:
-- Domain and URL Settings:
-  - `DOMAIN_NAME`: Your main domain (e.g., `yourdomain.com`)
-  - `SUBDOMAIN`: The subdomain for n8n (e.g., `n8n`)
-  - `N8N_HOST` and `N8N_HOSTNAME`: The hostname for your n8n instance
-  - `N8N_PORT`: Set to 5678 to avoid conflict with Supabase's use of port 8000
-
-- Authentication Credentials:
-  - `FLOWISE_USERNAME` and `FLOWISE_PASSWORD`: Credentials for Flowise
-  - `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASS`: Credentials for Grafana
-  - `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD`: Credentials for Supabase Studio
-
-- System Settings:
-  - `LETSENCRYPT_EMAIL`: Your email for Let's Encrypt certificates
-  - `TZ`: Your timezone (e.g., `Europe/Amsterdam`)
-  - `DATA_FOLDER`: Location for persistent data storage
-
-## Step 5: Start Services
+After completing the interactive setup, start all services with:
 
 ```bash
 # Run the start script with CPU profile
@@ -116,36 +111,150 @@ This will:
 3. Generate secure keys for SearXNG
 4. Start Supabase and the local AI stack
 
-## Step 6: Apply Configuration Fixes
+## Accessing Services
 
-After setting up the services, apply the necessary fixes for port conflicts and configurations:
+After installation, you can access the following services:
 
-```bash
-# Make the fix_config.sh script executable
-chmod +x fix_config.sh
+### Via Domain Names (with configured DNS)
 
-# Run the fix script
-sudo ./fix_config.sh
+- n8n: https://n8n.kwintes.cloud
+- Web UI: https://openwebui.kwintes.cloud
+- Flowise: https://flowise.kwintes.cloud
+- Supabase: https://supabase.kwintes.cloud
+- Supabase Studio: https://studio.supabase.kwintes.cloud
+- Grafana: https://grafana.kwintes.cloud
+- Prometheus: https://prometheus.kwintes.cloud
+- Ollama API: https://ollama.kwintes.cloud
+- Qdrant API: https://qdrant.kwintes.cloud
+- SearXNG: https://searxng.kwintes.cloud
+
+### Via IP Address (replace 46.202.155.155 with your VPS IP)
+
+- Main Entry Point: http://46.202.155.155 (redirects to n8n)
+- n8n: http://46.202.155.155:5678
+- Web UI (Open WebUI): http://46.202.155.155:8080
+- Flowise: http://46.202.155.155:3001
+- Supabase API: http://46.202.155.155:8000
+- Supabase Studio: http://46.202.155.155:54321
+- Grafana: http://46.202.155.155:3000
+- Prometheus: http://46.202.155.155:9090
+- Ollama API: http://46.202.155.155:11434
+- Qdrant API: http://46.202.155.155:6333
+- SearXNG: http://46.202.155.155:8080
+
+## n8n Container Configuration
+
+The standard n8n container in our configuration now uses these settings:
+
+```yaml
+n8n:
+  # Uses the base n8n configuration from x-n8n service
+  <<: *service-n8n
+  container_name: n8n
+  restart: unless-stopped
+  ports:
+    - 5678:5678  # Using port 5678 to avoid conflict with Supabase
+  environment:
+    - N8N_PORT=5678
+    - N8N_EDITOR_BASE_URL=https://n8n.${DOMAIN_NAME:-kwintes.cloud}
+    - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+    - NODE_FUNCTION_ALLOW_EXTERNAL=*
+    - N8N_METRICS_ENABLED=true
+    # These settings ensure external API access works properly
+    - N8N_SECURE_COOKIE=false 
+    - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
+    - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/
+  volumes:
+    - n8n_storage:/home/node/.n8n
+    - ./n8n/backup:/backup
+    - ./shared:/data/shared
+  networks:
+    - monitoring
 ```
 
-This enhanced configuration script will:
+---
 
-1. Automatically detect your environment (including domain name)
-2. Update your .env file with correct settings
-3. Configure optimal reverse proxy settings in Caddyfile
-4. Fix port mappings in docker-compose.yml
-5. Add necessary environment variables for external API access
-6. Ensure all services use the monitoring network
-7. Install and configure Docker and Docker Compose if needed
-8. Generate helpful utility scripts:
-   - update_stack.sh - For easy updates
-   - backup_stack.sh - For data backups
+Adapted and customized from the original projects:
+- [coleam00/local-ai-packaged](https://github.com/coleam00/local-ai-packaged)
+- [Digitl-Alchemyst/Automation-Stack](https://github.com/Digitl-Alchemyst/Automation-Stack) 
 
-The script includes robust error handling and will guide you through the setup process with clear, colorful output.
+## Troubleshooting
 
-After running the script, you can access the services at the configured subdomains (e.g., https://n8n.yourdomain.com) or via IP address with appropriate ports.
+### Common Issues on Ubuntu 24.04
 
-> **Note**: The root domain (e.g., yourdomain.com) will automatically redirect to n8n (https://n8n.yourdomain.com).
+1. **Docker Compose not found**
+
+   If you encounter errors about docker-compose, ensure it's installed correctly:
+   
+   ```bash
+   sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+2. **Permission Issues**
+
+   If you encounter permission issues with Docker:
+   
+   ```bash
+   sudo usermod -aG docker $USER
+   # Log out and log back in, or run:
+   newgrp docker
+   ```
+
+3. **Service not accessible**
+
+   Check your firewall settings and ensure the services are running:
+   
+   ```bash
+   sudo ufw status
+   /usr/local/bin/docker-compose -p localai ps
+   ```
+
+4. **Logs**
+
+   Check the logs for troubleshooting:
+   
+   ```bash
+   /usr/local/bin/docker-compose -p localai logs -f [service_name]
+   ```
+
+5. **n8n Interface Not Loading**
+
+   If the n8n interface at your root domain is not loading:
+   
+   ```bash
+   # Check Caddy logs
+   docker logs caddy
+   
+   # Restart Caddy
+   docker restart caddy
+   ```
+
+6. **Port Conflicts**
+
+   If you see port conflicts between services (particularly n8n and Supabase which both want to use port 8000):
+   
+   ```bash
+   # Apply the apply_fixes.sh script
+   sudo ./apply_fixes.sh
+   ```
+
+7. **n8n Not Working**
+
+   If n8n is still showing the wrong port configuration (like `0.0.0.0:8008->8000/tcp`):
+   
+   ```bash
+   # Stop all containers
+   docker compose down
+   
+   # Apply the fix and restart
+   sudo ./apply_fixes.sh
+   
+   # Check n8n container status
+   docker ps | grep n8n
+   
+   # The correct port mapping should be 5678:5678
+   ```
 
 ## Connecting n8n to External APIs
 

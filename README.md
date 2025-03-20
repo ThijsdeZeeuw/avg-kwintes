@@ -66,34 +66,33 @@ git clone https://github.com/ThijsdeZeeuw/avg-kwintes.git
 cd avg-kwintes
 ```
 
-5. Run the interactive setup:
-```bash
-python3 start_services.py --interactive
-```
-
-The script will:
-- Generate secure random values for all secrets
-- Create a .env file with your configuration
-- Save all secrets to secrets.txt
-- Set up monitoring with Prometheus and Grafana
-- Initialize all services
-
-6. Apply port and configuration fixes:
+5. Run the configuration script to prepare the environment:
 ```bash
 # Make the script executable
 chmod +x fix_config.sh
 
-# Run the configuration fix script
+# Run the configuration script
 sudo ./fix_config.sh
 ```
 
-Our enhanced configuration script will:
-- Automatically detect your environment and requirements
-- Configure all services for both local and external access
-- Ensure proper external API connectivity for n8n
-- Generate helpful utility scripts for maintenance
+The configuration script will:
+- Check and install all necessary system dependencies
+- Configure the correct firewall rules for all services
+- Detect and resolve any port conflicts
+- Generate utility scripts for maintenance
+- Create a basic .env file if one doesn't exist
 
-The script requires minimal intervention and provides clear, colorful output throughout the process.
+6. Run the interactive setup to complete configuration:
+```bash
+python3 start_services.py --interactive
+```
+
+7. Start the services:
+```bash
+python3 start_services.py --profile cpu
+```
+
+This sequence ensures that everything is properly configured before starting the services, avoiding port conflicts and other setup issues.
 
 ## Utility Scripts
 

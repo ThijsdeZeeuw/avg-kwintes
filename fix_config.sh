@@ -1,6 +1,6 @@
 #!/bin/bash
-# Enhanced Configuration Script for Local AI Stack on Ubuntu 24.04
-# Ensures proper port settings, networking, and external API access for all services
+# Configuration Script for Local AI Stack on Ubuntu 24.04
+# Prepares environment before running start_services.py
 
 set -e # Exit on error
 
@@ -36,8 +36,134 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# 1. Update .env file with correct configurations
-echo -e "${BLUE}🔧 Checking .env file...${NC}"
+# Function to check if a port is in use
+check_port() {
+    local port=$1
+    if netstat -tuln | grep -q ":$port "; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
+# Function to find a free port starting from the given port
+find_free_port() {
+    local start_port=$1
+    local port=$start_port
+    local max_attempts=10
+    local attempts=0
+
+    echo -e "${YELLOW}! Port $start_port is already in use. Searching for a free port...${NC}"
+    
+    while check_port $port && [ $attempts -lt $max_attempts ]; do
+        port=$((port + 1))
+        attempts=$((attempts + 1))
+    done
+
+    if [ $attempts -eq $max_attempts ]; then
+        echo -e "${RED}❌ Could not find a free port after $max_attempts attempts${NC}"
+        return $start_port
+    fi
+
+    echo -e "${GREEN}✓ Found free port: $port${NC}"
+    return $port
+}
+
+# 1. Check required packages
+echo -e "${BLUE}🔧 Checking required packages...${NC}"
+
+# Check if netstat is installed
+if ! command -v netstat >/dev/null 2>&1; then
+    echo -e "${YELLOW}! netstat not installed. Installing net-tools...${NC}"
+    apt-get update
+    apt-get install -y net-tools
+    echo -e "${GREEN}✓ net-tools installed${NC}"
+fi
+
+# 2. Check for Docker installation and proper versions
+echo -e "${BLUE}🔧 Checking Docker installation...${NC}"
+if ! command -v docker >/dev/null 2>&1; then
+    echo -e "${RED}❌ Docker is not installed. Installing Docker...${NC}"
+    apt-get update
+    apt-get install -y docker.io
+    systemctl enable docker
+    systemctl start docker
+    echo -e "${GREEN}✓ Docker installed successfully${NC}"
+else
+    DOCKER_VERSION=$(docker --version | cut -d ' ' -f3 | cut -d ',' -f1)
+    echo -e "${GREEN}✓ Docker version: $DOCKER_VERSION${NC}"
+fi
+
+# 3. Check Docker Compose installation
+echo -e "${BLUE}🔧 Checking Docker Compose installation...${NC}"
+
+# First check for standalone docker-compose (recommended for Ubuntu 24.04)
+if [ -x "/usr/local/bin/docker-compose" ]; then
+    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
+    DOCKER_COMPOSE_VERSION=$($DOCKER_COMPOSE_CMD --version | cut -d ' ' -f3 | cut -d ',' -f1)
+    echo -e "${GREEN}✓ Docker Compose standalone version: $DOCKER_COMPOSE_VERSION${NC}"
+# Then check for system-installed docker-compose
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    DOCKER_COMPOSE_VERSION=$(docker-compose --version | cut -d ' ' -f3 | cut -d ',' -f1)
+    echo -e "${GREEN}✓ Docker Compose version: $DOCKER_COMPOSE_VERSION${NC}"
+# Then check for Docker Compose plugin
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    DOCKER_COMPOSE_VERSION=$(docker compose version --short)
+    echo -e "${GREEN}✓ Docker Compose plugin version: $DOCKER_COMPOSE_VERSION${NC}"
+# If none found, install standalone Docker Compose
+else
+    echo -e "${YELLOW}! Docker Compose not found. Installing Docker Compose...${NC}"
+    curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
+    DOCKER_COMPOSE_VERSION=$($DOCKER_COMPOSE_CMD --version | cut -d ' ' -f3 | cut -d ',' -f1 || echo "Unknown")
+    echo -e "${GREEN}✓ Docker Compose installed version: $DOCKER_COMPOSE_VERSION${NC}"
+fi
+
+# 4. Update firewall settings
+echo -e "${BLUE}🔧 Checking firewall settings...${NC}"
+if command -v ufw > /dev/null; then
+    echo -e "${YELLOW}! Configuring UFW firewall...${NC}"
+    ufw status | grep -q "Status: active" || ufw enable
+    
+    # Define ports to open
+    declare -A ports=(
+        ["SSH"]="22"
+        ["HTTP"]="80"
+        ["HTTPS"]="443"
+        ["n8n"]="5678"
+        ["Flowise"]="3001"
+        ["OpenWebUI"]="8080"
+        ["Grafana"]="3000"
+        ["Supabase API"]="8000"
+        ["Ollama"]="11434"
+        ["Qdrant"]="6333"
+        ["Prometheus"]="9090"
+        ["Supabase Studio"]="54321"
+    )
+    
+    # Check and open ports
+    for service in "${!ports[@]}"; do
+        port="${ports[$service]}"
+        if ! ufw status | grep -q "$port/tcp"; then
+            echo -e "${YELLOW}! Opening port $port for $service${NC}"
+            ufw allow "$port/tcp"
+        else
+            echo -e "${GREEN}✓ Port $port already open for $service${NC}"
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Firewall configured${NC}"
+else
+    echo -e "${YELLOW}! UFW not installed. Please configure your firewall manually.${NC}"
+fi
+
+# 5. Check for port conflicts and update configuration if needed
+echo -e "${BLUE}🔍 Checking for port conflicts...${NC}"
+
+# 5.1 First check if .env exists
 if [ -f ".env" ]; then
     # Load current values from .env
     source .env
@@ -114,347 +240,248 @@ FLOWISE_USERNAME=admin
 FLOWISE_PASSWORD=password
 GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASS=password
+N8N_ENCRYPTION_KEY=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32)
+N8N_USER_MANAGEMENT_JWT_SECRET=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32)
 EOF
     
     echo -e "${GREEN}✓ Created basic .env file${NC}"
-    echo -e "${YELLOW}! Please update sensitive credentials in .env file before production use${NC}"
+    echo -e "${YELLOW}! Please review the .env file settings before starting services${NC}"
     
     # Load the newly created .env
     source .env
     DOMAIN_NAME="$domain_name"
 fi
 
-# Generate strong random tokens if needed
-if ! grep -q "N8N_ENCRYPTION_KEY=" ".env" || ! grep -q "N8N_USER_MANAGEMENT_JWT_SECRET=" ".env"; then
-    echo -e "${YELLOW}! Generating strong random tokens for n8n${NC}"
+# 5.2 Check for port conflicts for key services
+# Define service ports with their default and internal values
+declare -A service_ports=(
+    ["n8n"]="5678:5678"
+    ["open-webui"]="8080:8080"
+    ["flowise"]="3001:3001"
+    ["grafana"]="3000:3000"
+    ["prometheus"]="9090:9090"
+    ["qdrant"]="6333:6333"
+    ["ollama"]="11434:11434"
+    ["supabase"]="54321:54321"
+)
+
+# Store port assignments for .env update
+port_config_changes=()
+
+# Check and adjust ports for each service
+for service in "${!service_ports[@]}"; do
+    mapping="${service_ports[$service]}"
+    external_port=$(echo $mapping | cut -d':' -f1)
+    internal_port=$(echo $mapping | cut -d':' -f2)
     
-    n8n_encryption_key=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32)
-    n8n_jwt_secret=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32)
+    echo -e "${BLUE}  Checking port $external_port for $service...${NC}"
     
-    if grep -q "N8N_ENCRYPTION_KEY=" ".env"; then
-        sed -i "s/N8N_ENCRYPTION_KEY=.*/N8N_ENCRYPTION_KEY=$n8n_encryption_key/" ".env"
-    else
-        echo "N8N_ENCRYPTION_KEY=$n8n_encryption_key" >> ".env"
-    fi
-    
-    if grep -q "N8N_USER_MANAGEMENT_JWT_SECRET=" ".env"; then
-        sed -i "s/N8N_USER_MANAGEMENT_JWT_SECRET=.*/N8N_USER_MANAGEMENT_JWT_SECRET=$n8n_jwt_secret/" ".env"
-    else
-        echo "N8N_USER_MANAGEMENT_JWT_SECRET=$n8n_jwt_secret" >> ".env"
-    fi
-fi
-
-# 2. Update Caddyfile to use the correct configuration
-echo -e "${BLUE}🔧 Updating Caddyfile...${NC}"
-cat > Caddyfile << 'EOL'
-{
-    # Global options
-    email {$LETSENCRYPT_EMAIL}
-    admin off
-    auto_https disable_redirects # Modified to use a more stable option
-    servers {
-        protocol {
-            experimental_http3
-        }
-    }
-}
-
-# Root domain redirect to n8n
-{$DOMAIN_NAME} {
-    redir https://n8n.{$DOMAIN_NAME} permanent
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# N8N - Workflow Automation
-{$N8N_HOSTNAME} {
-    reverse_proxy n8n:5678
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Open WebUI - AI Interface
-{$WEBUI_HOSTNAME} {
-    reverse_proxy open-webui:8080
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Flowise - AI Flow Builder
-{$FLOWISE_HOSTNAME} {
-    reverse_proxy flowise:3001
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Ollama API - LLM Server
-{$OLLAMA_HOSTNAME} {
-    reverse_proxy ollama:11434
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Supabase - Backend Services
-{$SUPABASE_HOSTNAME} {
-    reverse_proxy supabase:3000
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Supabase Studio - Database Administration
-studio.{$DOMAIN_NAME} {
-    reverse_proxy kong:8000/
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# SearXNG - Privacy Search Engine
-{$SEARXNG_HOSTNAME} {
-    encode zstd gzip
-    
-    @api {
-        path /config
-        path /healthz
-        path /stats/errors
-        path /stats/checker
-    }
-    @search {
-        path /search
-    }
-    @imageproxy {
-        path /image_proxy
-    }
-    @static {
-        path /static/*
-    }
-    
-    header {
-        # CSP (https://content-security-policy.com)
-        Content-Security-Policy "upgrade-insecure-requests; default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self' https://github.com/searxng/searxng/issues/new; font-src 'self'; frame-ancestors 'self'; base-uri 'self'; connect-src 'self' https://overpass-api.de; img-src * data:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com https://www.deezer.com https://www.mixcloud.com https://w.soundcloud.com https://embed.spotify.com;"
-        # Disable some browser features
-        Permissions-Policy "accelerometer=(),camera=(),geolocation=(),gyroscope=(),magnetometer=(),microphone=(),payment=(),usb=()"
-        # Set referrer policy
-        Referrer-Policy "no-referrer"
-        # Force clients to use HTTPS
-        Strict-Transport-Security "max-age=31536000"
-        # Prevent MIME type sniffing from the declared Content-Type
-        X-Content-Type-Options "nosniff"
-        # X-Robots-Tag (comment to allow site indexing)
-        X-Robots-Tag "noindex, noarchive, nofollow"
-        # Remove "Server" header
-        -Server
-    }
-    
-    header @api {
-        Access-Control-Allow-Methods "GET, OPTIONS"
-        Access-Control-Allow-Origin "*"
-    }
-    
-    route {
-        # Cache policy
-        header Cache-Control "max-age=0, no-store"
-        header @search Cache-Control "max-age=5, private"
-        header @imageproxy Cache-Control "max-age=604800, public"
-        header @static Cache-Control "max-age=31536000, public, immutable"
-    }
-    
-    # SearXNG (uWSGI)
-    reverse_proxy searxng:8080 {
-        header_up X-Forwarded-Port {http.request.port}
-        header_up X-Real-IP {http.request.remote.host}
-        # https://github.com/searx/searx-docker/issues/24
-        header_up Connection "close"
-    }
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Grafana - Monitoring Dashboard
-grafana.{$DOMAIN_NAME} {
-    reverse_proxy grafana:3000
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Prometheus - Metrics Collection
-prometheus.{$DOMAIN_NAME} {
-    reverse_proxy prometheus:9090
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Qdrant API - Vector Database
-qdrant.{$DOMAIN_NAME} {
-    reverse_proxy qdrant:6333
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-
-# Whisper API - Speech to Text
-whisper.{$DOMAIN_NAME} {
-    reverse_proxy whisper:9000
-    tls {
-        protocols tls1.2 tls1.3
-    }
-}
-EOL
-echo -e "${GREEN}✓ Updated Caddyfile with correct configuration${NC}"
-
-# 3. Update docker-compose.yml with integrated changes
-echo -e "${BLUE}🔧 Updating docker-compose.yml...${NC}"
-
-# Check if docker-compose.yml exists
-if [ ! -f "docker-compose.yml" ]; then
-    echo -e "${RED}❌ docker-compose.yml not found. This script requires an existing docker-compose.yml file.${NC}"
-    exit 1
-fi
-
-# Make sure port mappings are correct and consistent
-if grep -q "8008:8000" docker-compose.yml; then
-    echo -e "${YELLOW}! Updating n8n port in docker-compose.yml...${NC}"
-    sed -i 's/- 8008:8000/- 5678:5678/' docker-compose.yml
-    echo -e "${GREEN}✓ Updated n8n port mapping from 8008:8000 to 5678:5678${NC}"
-fi
-
-# Update OpenWebUI port to be consistent
-if grep -q "\"3000:8080\"" docker-compose.yml; then
-    echo -e "${YELLOW}! Updating OpenWebUI port in docker-compose.yml...${NC}"
-    sed -i 's/- "3000:8080"/- "8080:8080"/' docker-compose.yml
-    echo -e "${GREEN}✓ Updated OpenWebUI port mapping from 3000:8080 to 8080:8080${NC}"
-fi
-
-# Update Grafana port to be consistent
-if grep -q "3005:3000" docker-compose.yml; then
-    echo -e "${YELLOW}! Updating Grafana port in docker-compose.yml...${NC}"
-    sed -i 's/- 3005:3000/- 3000:3000/' docker-compose.yml
-    echo -e "${GREEN}✓ Updated Grafana port mapping from 3005:3000 to 3000:3000${NC}"
-fi
-
-# Add additional environment variables to n8n service for external API access
-if ! grep -q "N8N_SECURE_COOKIE" docker-compose.yml; then
-    echo -e "${YELLOW}! Adding external API environment variables to n8n service...${NC}"
-    sed -i '/x-n8n: &service-n8n/,/x-ollama/s/- NODE_FUNCTION_ALLOW_EXTERNAL=\*/- NODE_FUNCTION_ALLOW_EXTERNAL=\*\n    - N8N_METRICS_ENABLED=true\n    - N8N_SECURE_COOKIE=false\n    - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true\n    - WEBHOOK_URL=https:\/\/${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}\//' docker-compose.yml
-    echo -e "${GREEN}✓ Added n8n environment variables for external API access${NC}"
-fi
-
-# Ensure all services use the monitoring network
-echo -e "${BLUE}🔧 Ensuring all services use the monitoring network...${NC}"
-services_updated=0
-for service in n8n flowise open-webui grafana prometheus qdrant searxng redis ollama-cpu ollama-gpu ollama-gpu-amd whisper; do
-    if grep -q "^  $service:" docker-compose.yml; then
-        if ! grep -q "^  $service:" -A 20 docker-compose.yml | grep -q "networks:" || ! grep -q "^  $service:" -A 25 docker-compose.yml | grep -q "monitoring"; then
-            echo -e "${YELLOW}! Adding monitoring network to $service${NC}"
-            sed -i "/^  $service:/,/^  [a-z]/ s/^  [a-z]/    networks:\n      - monitoring\n\n  &/" docker-compose.yml
-            services_updated=$((services_updated + 1))
+    if check_port $external_port; then
+        echo -e "${YELLOW}! Port $external_port is already in use${NC}"
+        # Find a free port
+        find_free_port $external_port
+        new_port=$?
+        
+        if [ $new_port != $external_port ]; then
+            echo -e "${YELLOW}! Setting $service to use port $new_port instead of $external_port${NC}"
+            service_ports[$service]="$new_port:$internal_port"
+            
+            # Add to port changes list for .env update
+            case $service in
+                "n8n")
+                    port_config_changes+=("N8N_PORT=$new_port")
+                    ;;
+                "open-webui")
+                    port_config_changes+=("WEBUI_PORT=$new_port")
+                    ;;
+                "flowise")
+                    port_config_changes+=("FLOWISE_PORT=$new_port")
+                    ;;
+                "grafana")
+                    port_config_changes+=("GRAFANA_PORT=$new_port")
+                    ;;
+                "prometheus")
+                    port_config_changes+=("PROMETHEUS_PORT=$new_port")
+                    ;;
+                "qdrant")
+                    port_config_changes+=("QDRANT_PORT=$new_port")
+                    ;;
+                "ollama")
+                    port_config_changes+=("OLLAMA_PORT=$new_port")
+                    ;;
+                "supabase")
+                    port_config_changes+=("STUDIO_PORT=$new_port")
+                    ;;
+            esac
+        else
+            echo -e "${RED}❌ Could not find a free port for $service${NC}"
         fi
+    else
+        echo -e "${GREEN}✓ Port $external_port is available${NC}"
     fi
 done
 
-if [ $services_updated -gt 0 ]; then
-    echo -e "${GREEN}✓ Added monitoring network to $services_updated services${NC}"
-else
-    echo -e "${GREEN}✓ All services already configured with monitoring network${NC}"
+# 5.3 Update .env with the new port assignments
+if [ ${#port_config_changes[@]} -gt 0 ]; then
+    echo -e "${BLUE}🔧 Updating .env with new port assignments...${NC}"
+    
+    for change in "${port_config_changes[@]}"; do
+        var_name=$(echo "$change" | cut -d'=' -f1)
+        var_value=$(echo "$change" | cut -d'=' -f2)
+        
+        if grep -q "^$var_name=" .env; then
+            # Update existing entry
+            sed -i "s/^$var_name=.*/$var_name=$var_value/" .env
+        else
+            # Add new entry
+            echo "$var_name=$var_value" >> .env
+        fi
+        
+        echo -e "${GREEN}✓ Updated $var_name to $var_value in .env${NC}"
+    done
+    
+    # Important: Update the N8N_PORT in env
+    if grep -q "N8N_PORT=" .env; then
+        n8n_mapping="${service_ports["n8n"]}"
+        n8n_port=$(echo $n8n_mapping | cut -d':' -f1)
+        sed -i "s/N8N_PORT=.*/N8N_PORT=$n8n_port/" .env
+        echo -e "${GREEN}✓ Updated N8N_PORT to $n8n_port in .env${NC}"
+    fi
+    
+    # Re-source the updated .env file
+    source .env
 fi
 
-# 4. Update firewall settings
-echo -e "${BLUE}🔧 Checking firewall settings...${NC}"
-if command -v ufw > /dev/null; then
-    echo -e "${YELLOW}! Configuring UFW firewall...${NC}"
-    ufw status | grep -q "Status: active" || ufw enable
-    
-    # Define ports to open
-    declare -A ports=(
-        ["SSH"]="22"
-        ["HTTP"]="80"
-        ["HTTPS"]="443"
-        ["n8n"]="5678"
-        ["Flowise"]="3001"
-        ["OpenWebUI"]="8080"
-        ["Grafana"]="3000"
-        ["Supabase API"]="8000"
-        ["Ollama"]="11434"
-        ["Qdrant"]="6333"
-        ["Prometheus"]="9090"
-        ["Supabase Studio"]="54321"
-    )
-    
-    # Check and open ports
-    for service in "${!ports[@]}"; do
-        port="${ports[$service]}"
-        if ! ufw status | grep -q "$port/tcp"; then
-            echo -e "${YELLOW}! Opening port $port for $service${NC}"
-            ufw allow "$port/tcp"
+# 6. Create helper scripts for later use
+echo -e "${BLUE}🔧 Creating utility scripts...${NC}"
+
+# 6.1 Update script
+cat > update_stack.sh << 'EOF'
+#!/bin/bash
+# Quick update script for Local AI Stack
+
+set -e # Exit on error
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}🔄 Updating Local AI Stack...${NC}"
+
+# Check for Docker Compose
+if [ -x "/usr/local/bin/docker-compose" ]; then
+    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    echo -e "${RED}❌ Docker Compose not found. Please install Docker Compose first.${NC}"
+    exit 1
+fi
+
+# Stop services
+echo -e "${BLUE}🛑 Stopping services...${NC}"
+$DOCKER_COMPOSE_CMD -p localai down
+echo -e "${GREEN}✓ Services stopped${NC}"
+
+# Apply configuration fixes
+echo -e "${BLUE}🔧 Running configuration checks...${NC}"
+./fix_config.sh
+echo -e "${GREEN}✓ Configuration checked${NC}"
+
+# Start services
+echo -e "${BLUE}🚀 Starting services...${NC}"
+python3 start_services.py --profile cpu
+echo -e "${GREEN}✓ Services started${NC}"
+
+echo -e "${GREEN}✅ Update completed successfully!${NC}"
+EOF
+chmod +x update_stack.sh
+
+# 6.2 Backup script
+cat > backup_stack.sh << 'EOF'
+#!/bin/bash
+# Backup script for Local AI Stack data
+
+set -e # Exit on error
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+BACKUP_DIR="./backups"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+BACKUP_FILE="$BACKUP_DIR/local-ai-stack-backup-$TIMESTAMP.tar.gz"
+
+echo -e "${BLUE}📦 Backing up Local AI Stack data...${NC}"
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Check for Docker Compose
+if [ -x "/usr/local/bin/docker-compose" ]; then
+    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    echo -e "${RED}❌ Docker Compose not found. Please install Docker Compose first.${NC}"
+    exit 1
+fi
+
+# Get volume names
+echo -e "${BLUE}🔍 Identifying volumes to backup...${NC}"
+VOLUMES=$($DOCKER_COMPOSE_CMD -p localai config --volumes 2>/dev/null | sort | uniq) || echo "No volumes found yet (stack may not be started)"
+
+# Backup critical files
+echo -e "${BLUE}📋 Backing up configuration files...${NC}"
+mkdir -p "$BACKUP_DIR/config"
+cp -f .env "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! .env not found${NC}"
+cp -f Caddyfile "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! Caddyfile not found${NC}"
+cp -f docker-compose.yml "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! docker-compose.yml not found${NC}"
+cp -f prometheus.yml "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! prometheus.yml not found${NC}"
+cp -f secrets.txt "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! secrets.txt not found${NC}"
+
+# Export volumes if they exist
+if [ -n "$VOLUMES" ]; then
+    echo -e "${BLUE}💾 Backing up Docker volumes...${NC}"
+    for volume in $VOLUMES; do
+        echo -e "${BLUE}  Backing up $volume...${NC}"
+        # Create a temporary container that mounts the volume and archive its contents
+        docker run --rm -v $volume:/source -v $(pwd)/$BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$volume.tar.gz -C /source ." || echo -e "${YELLOW}! Could not backup volume: $volume (may not exist yet)${NC}"
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}  ✓ Backed up $volume${NC}"
         else
-            echo -e "${GREEN}✓ Port $port already open for $service${NC}"
+            echo -e "${RED}  ❌ Failed to back up $volume${NC}"
         fi
     done
     
-    echo -e "${GREEN}✓ Firewall configured${NC}"
+    # Create final archive with volumes
+    echo -e "${BLUE}📦 Creating final backup archive with volumes...${NC}"
+    tar czf "$BACKUP_FILE" -C "$BACKUP_DIR" config $(for volume in $VOLUMES; do echo "$volume.tar.gz"; done 2>/dev/null)
 else
-    echo -e "${YELLOW}! UFW not installed. Please configure your firewall manually.${NC}"
+    # Create final archive with just config
+    echo -e "${BLUE}📦 Creating final backup archive (config only)...${NC}"
+    tar czf "$BACKUP_FILE" -C "$BACKUP_DIR" config
 fi
 
-# 5. Remove any existing docker-compose.override.yml file
-if [ -f "docker-compose.override.yml" ]; then
-    echo -e "${YELLOW}! Removing docker-compose.override.yml...${NC}"
-    rm docker-compose.override.yml
-    echo -e "${GREEN}✓ Removed override file as changes are now integrated into main file${NC}"
-fi
+# Clean up intermediate files
+echo -e "${BLUE}🧹 Cleaning up temporary files...${NC}"
+rm -f "$BACKUP_DIR"/*.tar.gz
+rm -rf "$BACKUP_DIR/config"
 
-# 6. Check for Docker installation and proper versions
-echo -e "${BLUE}🔧 Checking Docker installation...${NC}"
-if ! command -v docker >/dev/null 2>&1; then
-    echo -e "${RED}❌ Docker is not installed. Installing Docker...${NC}"
-    apt-get update
-    apt-get install -y docker.io
-    systemctl enable docker
-    systemctl start docker
-    echo -e "${GREEN}✓ Docker installed successfully${NC}"
-else
-    DOCKER_VERSION=$(docker --version | cut -d ' ' -f3 | cut -d ',' -f1)
-    echo -e "${GREEN}✓ Docker version: $DOCKER_VERSION${NC}"
-fi
+echo -e "${GREEN}✅ Backup completed successfully!${NC}"
+echo -e "${GREEN}📁 Backup saved to: $BACKUP_FILE${NC}"
+EOF
+chmod +x backup_stack.sh
 
-# 7. Check Docker Compose installation
-echo -e "${BLUE}🔧 Checking Docker Compose installation...${NC}"
-
-# First check for standalone docker-compose (recommended for Ubuntu 24.04)
-if [ -x "/usr/local/bin/docker-compose" ]; then
-    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
-    DOCKER_COMPOSE_VERSION=$($DOCKER_COMPOSE_CMD --version | cut -d ' ' -f3 | cut -d ',' -f1)
-    echo -e "${GREEN}✓ Docker Compose standalone version: $DOCKER_COMPOSE_VERSION${NC}"
-# Then check for system-installed docker-compose
-elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker-compose"
-    DOCKER_COMPOSE_VERSION=$(docker-compose --version | cut -d ' ' -f3 | cut -d ',' -f1)
-    echo -e "${GREEN}✓ Docker Compose version: $DOCKER_COMPOSE_VERSION${NC}"
-# Then check for Docker Compose plugin
-elif docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker compose"
-    DOCKER_COMPOSE_VERSION=$(docker compose version --short)
-    echo -e "${GREEN}✓ Docker Compose plugin version: $DOCKER_COMPOSE_VERSION${NC}"
-# If none found, install standalone Docker Compose
-else
-    echo -e "${YELLOW}! Docker Compose not found. Installing Docker Compose...${NC}"
-    curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
-    DOCKER_COMPOSE_VERSION=$($DOCKER_COMPOSE_CMD --version | cut -d ' ' -f3 | cut -d ',' -f1 || echo "Unknown")
-    echo -e "${GREEN}✓ Docker Compose installed version: $DOCKER_COMPOSE_VERSION${NC}"
-fi
-
-# 8. Auto-generate environment variable documentation file
+# 7. Generate environment variable documentation
 echo -e "${BLUE}🔧 Generating environment variable documentation...${NC}"
 cat > ENV_VARIABLES.md << EOF
 # Environment Variables Documentation
@@ -521,182 +548,50 @@ To ensure consistency and avoid port conflicts, we've configured each service to
 EOF
 echo -e "${GREEN}✓ Generated ENV_VARIABLES.md${NC}"
 
-# 9. Check or create update script
-echo -e "${BLUE}🔧 Creating update script...${NC}"
-cat > update_stack.sh << 'EOF'
-#!/bin/bash
-# Quick update script for Local AI Stack
-
-set -e # Exit on error
-
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${BLUE}🔄 Updating Local AI Stack...${NC}"
-
-# Check for Docker Compose
-if [ -x "/usr/local/bin/docker-compose" ]; then
-    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker-compose"
-elif docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker compose"
-else
-    echo -e "${RED}❌ Docker Compose not found. Please install Docker Compose first.${NC}"
-    exit 1
-fi
-
-# Pull latest images
-echo -e "${BLUE}📥 Pulling latest Docker images...${NC}"
-$DOCKER_COMPOSE_CMD pull
-echo -e "${GREEN}✓ Latest images pulled${NC}"
-
-# Stop services
-echo -e "${BLUE}🛑 Stopping services...${NC}"
-$DOCKER_COMPOSE_CMD down
-echo -e "${GREEN}✓ Services stopped${NC}"
-
-# Apply configuration fixes
-echo -e "${BLUE}🔧 Applying configuration fixes...${NC}"
-./fix_config.sh
-echo -e "${GREEN}✓ Configuration fixed${NC}"
-
-# Start services
-echo -e "${BLUE}🚀 Starting services...${NC}"
-$DOCKER_COMPOSE_CMD up -d
-echo -e "${GREEN}✓ Services started${NC}"
-
-# Display service status
-echo -e "${BLUE}📊 Service status:${NC}"
-$DOCKER_COMPOSE_CMD ps
-
-echo -e "${GREEN}✅ Update completed successfully!${NC}"
-EOF
-chmod +x update_stack.sh
-echo -e "${GREEN}✓ Created update_stack.sh${NC}"
-
-# 10. Create backup script
-echo -e "${BLUE}🔧 Creating backup script...${NC}"
-cat > backup_stack.sh << 'EOF'
-#!/bin/bash
-# Backup script for Local AI Stack data
-
-set -e # Exit on error
-
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-BACKUP_DIR="./backups"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/local-ai-stack-backup-$TIMESTAMP.tar.gz"
-
-echo -e "${BLUE}📦 Backing up Local AI Stack data...${NC}"
-
-# Create backup directory if it doesn't exist
-mkdir -p "$BACKUP_DIR"
-
-# Check for Docker Compose
-if [ -x "/usr/local/bin/docker-compose" ]; then
-    DOCKER_COMPOSE_CMD="/usr/local/bin/docker-compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker-compose"
-elif docker compose version >/dev/null 2>&1; then
-    DOCKER_COMPOSE_CMD="docker compose"
-else
-    echo -e "${RED}❌ Docker Compose not found. Please install Docker Compose first.${NC}"
-    exit 1
-fi
-
-# Get volume names
-echo -e "${BLUE}🔍 Identifying volumes to backup...${NC}"
-VOLUMES=$($DOCKER_COMPOSE_CMD config --volumes | sort | uniq)
-echo -e "${GREEN}✓ Found volumes: $VOLUMES${NC}"
-
-# Backup critical files
-echo -e "${BLUE}📋 Backing up configuration files...${NC}"
-mkdir -p "$BACKUP_DIR/config"
-cp -f .env "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! .env not found${NC}"
-cp -f Caddyfile "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! Caddyfile not found${NC}"
-cp -f docker-compose.yml "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! docker-compose.yml not found${NC}"
-cp -f prometheus.yml "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! prometheus.yml not found${NC}"
-cp -f secrets.txt "$BACKUP_DIR/config/" 2>/dev/null || echo -e "${YELLOW}! secrets.txt not found${NC}"
-
-# Export volumes
-echo -e "${BLUE}💾 Backing up Docker volumes...${NC}"
-for volume in $VOLUMES; do
-    echo -e "${BLUE}  Backing up $volume...${NC}"
-    # Create a temporary container that mounts the volume and archive its contents
-    docker run --rm -v $volume:/source -v $(pwd)/$BACKUP_DIR:/backup alpine sh -c "tar czf /backup/$volume.tar.gz -C /source ."
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}  ✓ Backed up $volume${NC}"
-    else
-        echo -e "${RED}  ❌ Failed to back up $volume${NC}"
-    fi
-done
-
-# Create final archive
-echo -e "${BLUE}📦 Creating final backup archive...${NC}"
-tar czf "$BACKUP_FILE" -C "$BACKUP_DIR" config $(for volume in $VOLUMES; do echo "$volume.tar.gz"; done)
-
-# Clean up intermediate files
-echo -e "${BLUE}🧹 Cleaning up temporary files...${NC}"
-rm -f "$BACKUP_DIR"/*.tar.gz
-rm -rf "$BACKUP_DIR/config"
-
-echo -e "${GREEN}✅ Backup completed successfully!${NC}"
-echo -e "${GREEN}📁 Backup saved to: $BACKUP_FILE${NC}"
-EOF
-chmod +x backup_stack.sh
-echo -e "${GREEN}✓ Created backup_stack.sh${NC}"
-
-# 11. Restart services if Docker is running
-echo -e "${BLUE}🔧 Checking Docker status...${NC}"
-if systemctl is-active --quiet docker; then
-    echo -e "${GREEN}✓ Docker is running. Restarting services...${NC}"
-    if [ "$DOCKER_COMPOSE_CMD" = "/usr/local/bin/docker-compose" ]; then
-        echo -e "${BLUE}🚀 Using standalone Docker Compose: $DOCKER_COMPOSE_CMD${NC}"
-        $DOCKER_COMPOSE_CMD down
-        $DOCKER_COMPOSE_CMD up -d
-    elif [ "$DOCKER_COMPOSE_CMD" = "docker-compose" ]; then
-        echo -e "${BLUE}🚀 Using system Docker Compose: $DOCKER_COMPOSE_CMD${NC}"
-        docker-compose down
-        docker-compose up -d
-    else
-        echo -e "${BLUE}🚀 Using Docker Compose plugin${NC}"
-        docker compose down
-        docker compose up -d
-    fi
-    echo -e "${GREEN}✓ Services restarted${NC}"
-else
-    echo -e "${YELLOW}! Docker is not running. Please start Docker first with: sudo systemctl start docker${NC}"
-fi
-
 # Get server's public IP
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
-echo -e "${GREEN}✅ Configuration fixes completed successfully!${NC}"
+# Get final dynamic port assignments for status display
+n8n_mapping="${service_ports["n8n"]-"5678:5678"}"
+n8n_port=$(echo $n8n_mapping | cut -d':' -f1)
+webui_mapping="${service_ports["open-webui"]-"8080:8080"}"
+webui_port=$(echo $webui_mapping | cut -d':' -f1)
+flowise_mapping="${service_ports["flowise"]-"3001:3001"}"
+flowise_port=$(echo $flowise_mapping | cut -d':' -f1)
+grafana_mapping="${service_ports["grafana"]-"3000:3000"}"
+grafana_port=$(echo $grafana_mapping | cut -d':' -f1)
+prometheus_mapping="${service_ports["prometheus"]-"9090:9090"}"
+prometheus_port=$(echo $prometheus_mapping | cut -d':' -f1)
+qdrant_mapping="${service_ports["qdrant"]-"6333:6333"}"
+qdrant_port=$(echo $qdrant_mapping | cut -d':' -f1)
+ollama_mapping="${service_ports["ollama"]-"11434:11434"}"
+ollama_port=$(echo $ollama_mapping | cut -d':' -f1)
+supabase_mapping="${service_ports["supabase"]-"54321:54321"}"
+supabase_port=$(echo $supabase_mapping | cut -d':' -f1)
+
+# Final summary
+echo -e "${GREEN}✅ Configuration preparation completed successfully!${NC}"
 echo ""
-echo -e "${BLUE}🌐 Services are now accessible at:${NC}"
-echo -e "${GREEN}• n8n:${NC} https://n8n.${DOMAIN_NAME} or http://${SERVER_IP}:5678"
-echo -e "${GREEN}• OpenWebUI:${NC} https://openwebui.${DOMAIN_NAME} or http://${SERVER_IP}:8080"
-echo -e "${GREEN}• Flowise:${NC} https://flowise.${DOMAIN_NAME} or http://${SERVER_IP}:3001"
-echo -e "${GREEN}• Grafana:${NC} https://grafana.${DOMAIN_NAME} or http://${SERVER_IP}:3000"
-echo -e "${GREEN}• Supabase Studio:${NC} https://studio.${DOMAIN_NAME} or http://${SERVER_IP}:54321"
-echo -e "${GREEN}• Qdrant:${NC} https://qdrant.${DOMAIN_NAME} or http://${SERVER_IP}:6333"
-echo -e "${GREEN}• Prometheus:${NC} https://prometheus.${DOMAIN_NAME} or http://${SERVER_IP}:9090"
-echo -e "${GREEN}• Ollama:${NC} https://ollama.${DOMAIN_NAME} or http://${SERVER_IP}:11434"
+echo -e "${BLUE}⚙️ Next steps:${NC}"
+echo -e "1. ${YELLOW}Run the interactive setup to finish configuration:${NC}"
+echo -e "   ${GREEN}python3 start_services.py --interactive${NC}"
+echo -e "2. ${YELLOW}Start services with:${NC}"
+echo -e "   ${GREEN}python3 start_services.py --profile cpu${NC}"
+echo ""
+echo -e "${BLUE}🌐 Services will be accessible at:${NC}"
+echo -e "${GREEN}• n8n:${NC} https://n8n.${DOMAIN_NAME} or http://${SERVER_IP}:${n8n_port}"
+echo -e "${GREEN}• OpenWebUI:${NC} https://openwebui.${DOMAIN_NAME} or http://${SERVER_IP}:${webui_port}"
+echo -e "${GREEN}• Flowise:${NC} https://flowise.${DOMAIN_NAME} or http://${SERVER_IP}:${flowise_port}"
+echo -e "${GREEN}• Grafana:${NC} https://grafana.${DOMAIN_NAME} or http://${SERVER_IP}:${grafana_port}"
+echo -e "${GREEN}• Supabase Studio:${NC} https://studio.${DOMAIN_NAME} or http://${SERVER_IP}:${supabase_port}"
+echo -e "${GREEN}• Qdrant:${NC} https://qdrant.${DOMAIN_NAME} or http://${SERVER_IP}:${qdrant_port}"
+echo -e "${GREEN}• Prometheus:${NC} https://prometheus.${DOMAIN_NAME} or http://${SERVER_IP}:${prometheus_port}"
+echo -e "${GREEN}• Ollama:${NC} https://ollama.${DOMAIN_NAME} or http://${SERVER_IP}:${ollama_port}"
 echo -e "${GREEN}• SearXNG:${NC} https://searxng.${DOMAIN_NAME} or http://${SERVER_IP}:8080"
 echo ""
 echo -e "${BLUE}📋 Management commands:${NC}"
 echo -e "${GREEN}• Update stack:${NC} ./update_stack.sh"
 echo -e "${GREEN}• Backup data:${NC} ./backup_stack.sh"
-echo -e "${GREEN}• Fix configuration:${NC} ./fix_config.sh"
-echo -e "${GREEN}• Check service logs:${NC} docker logs [service_name]"
+echo -e "${GREEN}• Check port usage:${NC} netstat -tuln | grep [port]"
 echo ""
-echo -e "${YELLOW}! NOTE: The root domain (${DOMAIN_NAME}) redirects to n8n (https://n8n.${DOMAIN_NAME})${NC}" 
+echo -e "${YELLOW}! If you encountered port conflicts, some services will run on different ports than default!${NC}" 
