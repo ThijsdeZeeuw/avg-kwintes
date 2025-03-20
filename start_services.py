@@ -16,6 +16,7 @@ import platform
 import sys
 import secrets
 import string
+import re
 
 def generate_random_string(length=32):
     """Generate a random string of specified length."""
@@ -397,155 +398,199 @@ def start_supabase():
     run_command(cmd)
 
 def start_local_ai(profile=None):
-    """Start the local AI services (using its compose file)."""
-    print("Starting local AI services...")
-    docker_compose_cmd = check_docker_compose()
-    cmd = docker_compose_cmd.copy()
-    cmd.extend(["-p", "localai"])
-    if profile and profile != "none":
-        cmd.extend(["--profile", profile])
-    cmd.extend(["-f", "docker-compose.yml", "up", "-d"])
-    run_command(cmd)
+    """Start all local AI services using docker-compose"""
+    print(f"Starting Local AI stack with profile: {profile or 'default'}")
+    check_docker_compose()
+    
+    # Create n8n backup directories if they don't exist
+    os.makedirs("n8n/backup/workflows", exist_ok=True)
+    os.makedirs("n8n/backup/credentials", exist_ok=True)
+    
+    # Create shared data directory
+    os.makedirs("shared", exist_ok=True)
+    
+    # Check and fix docker-compose.yml for SearXNG if needed
+    generate_searxng_secret_key()
+    
+    # First stop running containers
+    print("Stopping any existing containers...")
+    stop_existing_containers()
+    
+    # Detect if we're on Ubuntu 24.04
+    is_ubuntu_24_04 = False
+    try:
+        with open('/etc/os-release', 'r') as f:
+            if 'VERSION_ID="24.04"' in f.read() and 'NAME="Ubuntu"' in f.read():
+                is_ubuntu_24_04 = True
+    except FileNotFoundError:
+        pass
+    
+    if USE_DOCKER_COMPOSE_PLUGIN:
+        if profile:
+            cmd = ["docker", "compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
+        else:
+            cmd = ["docker", "compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
+    elif is_ubuntu_24_04:
+        # Use standalone docker-compose on Ubuntu 24.04
+        if profile:
+            cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
+        else:
+            cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
+    else:
+        if profile:
+            cmd = ["docker-compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
+        else:
+            cmd = ["docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
+    
+    print(f"Running command: {' '.join(cmd)}")
+    try:
+        run_command(cmd)
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: Container startup had errors but continuing anyway: {str(e)}")
+        # Check if n8n is running despite the error
+        check_cmd = ["docker", "ps", "--filter", "name=n8n", "--format", "{{.Names}}"]
+        result = subprocess.run(check_cmd, capture_output=True, text=True)
+        if "n8n" not in result.stdout:
+            print("Error: n8n container failed to start. Check docker logs for details.")
+            # Try to start just the n8n container
+            try:
+                if USE_DOCKER_COMPOSE_PLUGIN:
+                    retry_cmd = ["docker", "compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
+                elif is_ubuntu_24_04:
+                    retry_cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
+                else:
+                    retry_cmd = ["docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
+                print(f"Trying to start n8n container separately: {' '.join(retry_cmd)}")
+                subprocess.run(retry_cmd, check=True)
+            except subprocess.CalledProcessError:
+                print("Failed to start n8n container separately.")
+        else:
+            print("n8n container is running despite errors in other services.")
+
+    print("\nLocal AI stack started successfully.")
+    print("\nAccess the services at:")
+    print("- n8n: http://localhost:5678")
+    print("- Flowise: http://localhost:3001")
+    print("- OpenWebUI: http://localhost:8080")
+    print("- Qdrant: http://localhost:6333")
+    print("- Prometheus: http://localhost:9090")
+    print("- Grafana: http://localhost:3000")
+    print("- Ollama: http://localhost:11434")
 
 def generate_searxng_secret_key():
-    """Generate a secret key for SearXNG based on the current platform."""
-    print("Checking SearXNG settings...")
-    
-    # Define paths for SearXNG settings files
-    settings_path = os.path.join("searxng", "settings.yml")
-    settings_base_path = os.path.join("searxng", "settings-base.yml")
-    
-    # Check if settings-base.yml exists
-    if not os.path.exists(settings_base_path):
-        print(f"Warning: SearXNG base settings file not found at {settings_base_path}")
+    """Generate a random secret key for SearXNG if it doesn't exist"""
+    # Skip if SearXNG is no longer in use
+    if not os.path.exists('searxng'):
+        print("SearXNG not found, skipping secret key generation")
         return
-    
-    # Check if settings.yml exists, if not create it from settings-base.yml
-    if not os.path.exists(settings_path):
-        print(f"SearXNG settings.yml not found. Creating from {settings_base_path}...")
-        try:
-            shutil.copyfile(settings_base_path, settings_path)
-            print(f"Created {settings_path} from {settings_base_path}")
-        except Exception as e:
-            print(f"Error creating settings.yml: {e}")
-            return
-    else:
-        print(f"SearXNG settings.yml already exists at {settings_path}")
-    
-    print("Generating SearXNG secret key...")
-    
-    # Detect the platform and run the appropriate command
-    system = platform.system()
-    
-    try:
-        if system == "Windows":
-            print("Detected Windows platform, using PowerShell to generate secret key...")
-            # PowerShell command to generate a random key and replace in the settings file
-            ps_command = [
-                "powershell", "-Command",
-                "$randomBytes = New-Object byte[] 32; " +
-                "(New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($randomBytes); " +
-                "$secretKey = -join ($randomBytes | ForEach-Object { \"{0:x2}\" -f $_ }); " +
-                "(Get-Content searxng/settings.yml) -replace 'ultrasecretkey', $secretKey | Set-Content searxng/settings.yml"
-            ]
-            subprocess.run(ps_command, check=True)
-            
-        elif system == "Darwin":  # macOS
-            print("Detected macOS platform, using sed command with empty string parameter...")
-            # macOS sed command requires an empty string for the -i parameter
-            openssl_cmd = ["openssl", "rand", "-hex", "32"]
-            random_key = subprocess.check_output(openssl_cmd).decode('utf-8').strip()
-            sed_cmd = ["sed", "-i", "", f"s|ultrasecretkey|{random_key}|g", settings_path]
-            subprocess.run(sed_cmd, check=True)
-            
-        else:  # Linux and other Unix-like systems
-            print("Detected Linux/Unix platform, using standard sed command...")
-            # Standard sed command for Linux
-            openssl_cmd = ["openssl", "rand", "-hex", "32"]
-            random_key = subprocess.check_output(openssl_cmd).decode('utf-8').strip()
-            sed_cmd = ["sed", "-i", f"s|ultrasecretkey|{random_key}|g", settings_path]
-            subprocess.run(sed_cmd, check=True)
-            
-        print("SearXNG secret key generated successfully.")
         
-    except Exception as e:
-        print(f"Error generating SearXNG secret key: {e}")
-        print("You may need to manually generate the secret key using the commands:")
-        print("  - Linux: sed -i \"s|ultrasecretkey|$(openssl rand -hex 32)|g\" searxng/settings.yml")
-        print("  - macOS: sed -i '' \"s|ultrasecretkey|$(openssl rand -hex 32)|g\" searxng/settings.yml")
-        print("  - Windows (PowerShell):")
-        print("    $randomBytes = New-Object byte[] 32")
-        print("    (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($randomBytes)")
-        print("    $secretKey = -join ($randomBytes | ForEach-Object { \"{0:x2}\" -f $_ })")
-        print("    (Get-Content searxng/settings.yml) -replace 'ultrasecretkey', $secretKey | Set-Content searxng/settings.yml")
+    searxng_dir = os.path.join(os.getcwd(), 'searxng')
+    os.makedirs(searxng_dir, exist_ok=True)
+    settings_base_path = os.path.join(searxng_dir, 'settings-base.yml')
+    settings_path = os.path.join(searxng_dir, 'settings.yml')
+    
+    if not os.path.exists(settings_path):
+        print("Generating SearXNG settings.yml with secure secret key...")
+        
+        # Default base settings if settings-base.yml doesn't exist
+        default_settings = """# see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
+use_default_settings: true
+server:
+  # base_url is defined in the SEARXNG_BASE_URL environment variable, see .env and docker-compose.yml
+  secret_key: "ultrasecretkey"  # change this!
+  limiter: false
+  image_proxy: true
+ui:
+  static_use_hash: true
+redis:
+  url: redis://redis:6379/0
+search:
+    formats:
+        - html
+        - json
+"""
+        
+        if not os.path.exists(settings_base_path):
+            with open(settings_base_path, 'w') as f:
+                f.write(default_settings)
+        
+        # Read the base settings
+        with open(settings_base_path, 'r') as f:
+            settings_content = f.read()
+        
+        # Generate a secure random key
+        secret_key = generate_random_string(32)
+        
+        # Replace the placeholder with the secure key
+        settings_content = settings_content.replace('ultrasecretkey', secret_key)
+        
+        # Write the new settings file
+        with open(settings_path, 'w') as f:
+            f.write(settings_content)
+        
+        print("SearXNG settings.yml created with secure secret key.")
+    
+    # Create uwsgi.ini if it doesn't exist
+    uwsgi_path = os.path.join(searxng_dir, 'uwsgi.ini')
+    if not os.path.exists(uwsgi_path):
+        uwsgi_content = """[uwsgi]
+# disable logging for privacy
+disable-logging = true
+
+# Number of workers (usually CPU count)
+workers = %s
+
+# Number of threads per worker
+threads = %s
+
+master = true
+module = searx.webapp
+"""
+        uwsgi_workers = os.environ.get("SEARXNG_UWSGI_WORKERS", "4")
+        uwsgi_threads = os.environ.get("SEARXNG_UWSGI_THREADS", "4")
+        
+        with open(uwsgi_path, 'w') as f:
+            f.write(uwsgi_content % (uwsgi_workers, uwsgi_threads))
 
 def check_and_fix_docker_compose_for_searxng():
-    """Check and modify docker-compose.yml for SearXNG first run."""
-    docker_compose_path = "docker-compose.yml"
-    if not os.path.exists(docker_compose_path):
-        print(f"Warning: Docker Compose file not found at {docker_compose_path}")
+    """Check and fix the docker-compose.yml file for SearXNG service"""
+    # Skip if SearXNG is no longer in use
+    if not os.path.exists('searxng'):
+        print("SearXNG not found, skipping docker-compose check")
         return
+        
+    # Check if the docker-compose.yml file exists
+    if not os.path.exists('docker-compose.yml'):
+        print("docker-compose.yml file not found! Please make sure it exists in the current directory.")
+        return
+
+    # Read the docker-compose.yml file
+    with open('docker-compose.yml', 'r') as f:
+        docker_compose_content = f.read()
+
+    # Check if the searxng service is present
+    if 'container_name: searxng' not in docker_compose_content:
+        print("SearXNG service not found in docker-compose.yml, no need to fix.")
+        return
+
+    # Check if the fix is already applied
+    if "uwsgi.ini:/etc/uwsgi/searxng.ini:ro" in docker_compose_content:
+        print("SearXNG docker-compose configuration already fixed.")
+        return
+
+    print("Fixing SearXNG configuration in docker-compose.yml...")
+
+    # Fix the volumes section of the searxng service
+    pattern = r'(searxng:\s+.*?volumes:\s+.*?- \./searxng:/etc/searxng:rw)(\s+.*?environment:)'
+    replacement = r'\1\n      - ./searxng/uwsgi.ini:/etc/uwsgi/searxng.ini:ro\2'
     
-    try:
-        # Read the docker-compose.yml file
-        with open(docker_compose_path, 'r') as file:
-            content = file.read()
-        
-        # Default to first run
-        is_first_run = True
-        
-        # Check if Docker is running and if the SearXNG container exists
-        try:
-            # Check if the SearXNG container is running
-            container_check = subprocess.run(
-                ["docker", "ps", "--filter", "name=searxng", "--format", "{{.Names}}"],
-                capture_output=True, text=True, check=True
-            )
-            searxng_containers = container_check.stdout.strip().split('\n')
-            
-            # If SearXNG container is running, check inside for uwsgi.ini
-            if any(container for container in searxng_containers if container):
-                container_name = next(container for container in searxng_containers if container)
-                print(f"Found running SearXNG container: {container_name}")
-                
-                # Check if uwsgi.ini exists inside the container
-                container_check = subprocess.run(
-                    ["docker", "exec", container_name, "sh", "-c", "[ -f /etc/searxng/uwsgi.ini ] && echo 'found' || echo 'not_found'"],
-                    capture_output=True, text=True, check=True
-                )
-                
-                if "found" in container_check.stdout:
-                    print("Found uwsgi.ini inside the SearXNG container - not first run")
-                    is_first_run = False
-                else:
-                    print("uwsgi.ini not found inside the SearXNG container - first run")
-                    is_first_run = True
-            else:
-                print("No running SearXNG container found - assuming first run")
-        except Exception as e:
-            print(f"Error checking Docker container: {e} - assuming first run")
-        
-        if is_first_run and "cap_drop: - ALL" in content:
-            print("First run detected for SearXNG. Temporarily removing 'cap_drop: - ALL' directive...")
-            # Temporarily comment out the cap_drop line
-            modified_content = content.replace("cap_drop: - ALL", "# cap_drop: - ALL  # Temporarily commented out for first run")
-            
-            # Write the modified content back
-            with open(docker_compose_path, 'w') as file:
-                file.write(modified_content)
-                
-            print("Note: After the first run completes successfully, you should re-add 'cap_drop: - ALL' to docker-compose.yml for security reasons.")
-        elif not is_first_run and "# cap_drop: - ALL  # Temporarily commented out for first run" in content:
-            print("SearXNG has been initialized. Re-enabling 'cap_drop: - ALL' directive for security...")
-            # Uncomment the cap_drop line
-            modified_content = content.replace("# cap_drop: - ALL  # Temporarily commented out for first run", "cap_drop: - ALL")
-            
-            # Write the modified content back
-            with open(docker_compose_path, 'w') as file:
-                file.write(modified_content)
-    
-    except Exception as e:
-        print(f"Error checking/modifying docker-compose.yml for SearXNG: {e}")
+    fixed_content = re.sub(pattern, replacement, docker_compose_content, flags=re.DOTALL)
+
+    # Write the fixed content back to the file
+    with open('docker-compose.yml', 'w') as f:
+        f.write(fixed_content)
+
+    print("SearXNG configuration in docker-compose.yml has been fixed.")
 
 def create_data_directories():
     """Create necessary data directories for mounted volumes."""

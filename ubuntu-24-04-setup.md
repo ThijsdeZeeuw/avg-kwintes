@@ -50,6 +50,7 @@ sudo ufw allow 9090  # Prometheus
 sudo ufw allow 11434 # Ollama
 sudo ufw allow 6333  # Qdrant
 sudo ufw allow 54321 # Supabase Studio
+sudo ufw allow 8088  # SearXNG (using port 8088 to avoid conflict with OpenWebUI)
 sudo ufw reload
 ```
 
@@ -126,6 +127,7 @@ After installation, you can access the following services:
 - Prometheus: https://prometheus.kwintes.cloud
 - Ollama API: https://ollama.kwintes.cloud
 - Qdrant API: https://qdrant.kwintes.cloud
+- SearXNG: https://searxng.kwintes.cloud
 
 ### Via IP Address (replace 46.202.155.155 with your VPS IP)
 
@@ -139,6 +141,7 @@ After installation, you can access the following services:
 - Prometheus: http://46.202.155.155:9090
 - Ollama API: http://46.202.155.155:11434
 - Qdrant API: http://46.202.155.155:6333
+- SearXNG: http://46.202.155.155:8088
 
 ## n8n Container Configuration
 
@@ -387,6 +390,7 @@ After installation, you can access the following services:
 - Prometheus: https://prometheus.kwintes.cloud
 - Ollama API: https://ollama.kwintes.cloud
 - Qdrant API: https://qdrant.kwintes.cloud
+- SearXNG: https://searxng.kwintes.cloud
 
 ### Via IP Address (replace 46.202.155.155 with your VPS IP)
 
@@ -400,6 +404,7 @@ After installation, you can access the following services:
 - Prometheus: http://46.202.155.155:9090
 - Ollama API: http://46.202.155.155:11434
 - Qdrant API: http://46.202.155.155:6333
+- SearXNG: http://46.202.155.155:8088
 
 ## n8n Container Configuration
 

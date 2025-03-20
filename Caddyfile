@@ -60,65 +60,84 @@
     }
 }
 
-# SearXNG
-{$SEARXNG_HOSTNAME} {
+# SearXNG - Privacy-Focused Search Engine
+{$SEARXNG_HOSTNAME:searxng.kwintes.cloud} {
+    # Enable compression for better performance
     encode zstd gzip
     
+    # Handle different paths with appropriate caching and headers
     @api {
         path /config
         path /healthz
         path /stats/errors
         path /stats/checker
     }
+    
     @search {
         path /search
     }
+    
     @imageproxy {
         path /image_proxy
     }
+    
     @static {
         path /static/*
     }
     
+    # Set security headers
     header {
-        # CSP (https://content-security-policy.com)
+        # Content Security Policy
         Content-Security-Policy "upgrade-insecure-requests; default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; form-action 'self' https://github.com/searxng/searxng/issues/new; font-src 'self'; frame-ancestors 'self'; base-uri 'self'; connect-src 'self' https://overpass-api.de; img-src * data:; frame-src https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com https://www.deezer.com https://www.mixcloud.com https://w.soundcloud.com https://embed.spotify.com;"
-        # Disable some browser features
+        
+        # Disable browser features for privacy
         Permissions-Policy "accelerometer=(),camera=(),geolocation=(),gyroscope=(),magnetometer=(),microphone=(),payment=(),usb=()"
-        # Set referrer policy
+        
+        # Set referrer policy for privacy
         Referrer-Policy "no-referrer"
-        # Force clients to use HTTPS
+        
+        # Force HTTPS
         Strict-Transport-Security "max-age=31536000"
-        # Prevent MIME type sniffing from the declared Content-Type
+        
+        # Prevent MIME type sniffing
         X-Content-Type-Options "nosniff"
-        # X-Robots-Tag (comment to allow site indexing)
+        
+        # No indexing
         X-Robots-Tag "noindex, noarchive, nofollow"
-        # Remove "Server" header
+        
+        # Remove server header
         -Server
     }
     
+    # CORS for API
     header @api {
         Access-Control-Allow-Methods "GET, OPTIONS"
         Access-Control-Allow-Origin "*"
     }
     
+    # Set caching policies
     route {
-        # Cache policy
         header Cache-Control "max-age=0, no-store"
         header @search Cache-Control "max-age=5, private"
         header @imageproxy Cache-Control "max-age=604800, public"
         header @static Cache-Control "max-age=31536000, public, immutable"
     }
     
-    # SearXNG (uWSGI)
+    # Proxy to SearXNG service
     reverse_proxy searxng:8080 {
         header_up X-Forwarded-Port {http.request.port}
         header_up X-Real-IP {http.request.remote.host}
-        # https://github.com/searx/searx-docker/issues/24
-        header_up Connection "close"
+        header_up Connection "close" # Fix for hanging connections
     }
+    
+    # TLS settings
     tls {
         protocols tls1.2 tls1.3
+    }
+    
+    # Custom error page handling
+    handle_errors {
+        respond "Service temporarily unavailable. Please try again later." 503
     }
 }
 

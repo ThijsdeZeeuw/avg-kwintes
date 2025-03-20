@@ -17,6 +17,7 @@ This document describes all the environment variables used in the Local AI Stack
 | `FLOWISE_HOSTNAME` | Full hostname for Flowise | `flowise.kwintes.cloud` |
 | `SUPABASE_HOSTNAME` | Full hostname for Supabase | `supabase.kwintes.cloud` |
 | `OLLAMA_HOSTNAME` | Full hostname for Ollama | `ollama.kwintes.cloud` |
+| `SEARXNG_HOSTNAME` | Full hostname for SearXNG | `searxng.kwintes.cloud` |
 | `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `tddezeeuw@gmail.com` |
 
 ### n8n Configuration
@@ -68,6 +69,17 @@ This document describes all the environment variables used in the Local AI Stack
 | `GRAFANA_ADMIN_PASS` | Admin password for Grafana | `password` (change this!) |
 | `DATA_FOLDER` | Folder for persistent data storage | `./data` |
 
+### SearXNG Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SEARXNG_HOSTNAME` | Hostname for SearXNG | `searxng.kwintes.cloud` |
+| `SEARXNG_UWSGI_WORKERS` | Number of worker processes | `4` |
+| `SEARXNG_UWSGI_THREADS` | Number of threads per worker | `4` |
+| `SEARXNG_EXTERNAL_BANG` | Enable !bang support | Not set (disabled) |
+| `SEARXNG_EXTERNAL_PLUGINS` | Enable external plugins | Not set (disabled) |
+| `SEARXNG_DISABLE_METRICS` | Disable metrics collection | Not set (enabled) |
+
 ### System Configuration
 
 | Variable | Description | Default |
@@ -90,6 +102,7 @@ To ensure consistency and avoid port conflicts, we've configured each service to
 | Prometheus | 9090 | |
 | Qdrant | 6333 | |
 | Ollama | 11434 | |
+| SearXNG | 8088→8080 | External port 8088 maps to internal port 8080 |
 | Caddy | 80/443 | Reverse proxy for all services |
 
 ## Advanced Configuration

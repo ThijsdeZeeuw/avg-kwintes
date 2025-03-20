@@ -103,9 +103,10 @@ services:
     <<: *service-n8n
     container_name: n8n-import
     entrypoint: /bin/sh
+    restart: "no"
     command:
       - "-c"
-      - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
+      - "n8n import:credentials --separate --input=/backup/credentials || true && n8n import:workflow --separate --input=/backup/workflows || true"
     volumes:
       - ./n8n/backup:/backup
     networks:
@@ -157,9 +158,6 @@ services:
       - n8n_storage:/home/node/.n8n
       - ./n8n/backup:/backup
       - ./shared:/data/shared
-    depends_on:
-      n8n-import:
-        condition: service_completed_successfully
     networks:
       - monitoring
 
@@ -227,6 +225,41 @@ services:
         max-file: "1"
     networks:
       - monitoring
+
+  searxng:
+    container_name: searxng
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - 8088:8080  # Changed from 8080 to avoid conflict with OpenWebUI
+    volumes:
+      - ./searxng:/etc/searxng:rw
+      - ./searxng/uwsgi.ini:/etc/uwsgi/searxng.ini:ro
+    environment:
+      - SEARXNG_BASE_URL=https://${SEARXNG_HOSTNAME:-searxng.${DOMAIN_NAME:-kwintes.cloud}}/
+      - UWSGI_WORKERS=${SEARXNG_UWSGI_WORKERS:-4}
+      - UWSGI_THREADS=${SEARXNG_UWSGI_THREADS:-4}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"      
+    networks:
+      - monitoring
+    depends_on:
+      - redis
 
   ollama-cpu:
     profiles: ["cpu"]

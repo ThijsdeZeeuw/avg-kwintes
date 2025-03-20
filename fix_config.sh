@@ -142,6 +142,7 @@ if command -v ufw > /dev/null; then
         ["Qdrant"]="6333"
         ["Prometheus"]="9090"
         ["Supabase Studio"]="54321"
+        ["SearXNG"]="8088"
     )
     
     # Check and open ports
@@ -587,6 +588,7 @@ echo -e "${GREEN}• Supabase Studio:${NC} https://studio.${DOMAIN_NAME} or http
 echo -e "${GREEN}• Qdrant:${NC} https://qdrant.${DOMAIN_NAME} or http://${SERVER_IP}:${qdrant_port}"
 echo -e "${GREEN}• Prometheus:${NC} https://prometheus.${DOMAIN_NAME} or http://${SERVER_IP}:${prometheus_port}"
 echo -e "${GREEN}• Ollama:${NC} https://ollama.${DOMAIN_NAME} or http://${SERVER_IP}:${ollama_port}"
+echo -e "${GREEN}• SearXNG:${NC} https://searxng.${DOMAIN_NAME} or http://${SERVER_IP}:8088"
 echo ""
 echo -e "${BLUE}📋 Management commands:${NC}"
 echo -e "${GREEN}• Update stack:${NC} ./update_stack.sh"
