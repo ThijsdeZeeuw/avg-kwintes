@@ -146,4 +146,52 @@ qdrant.{$DOMAIN_NAME} {
     }
 }
 
+# Add configuration for Qdrant
+(qdrant) {
+    handle_path /dashboard* {
+        uri strip_prefix /dashboard
+        reverse_proxy qdrant:6333
+    }
+
+    reverse_proxy qdrant:6333
+}
+
+# Apply configurations to hosts
+# ============================
+
+# n8n
+{$N8N_HOSTNAME:n8n.kwintes.cloud} {
+    import n8n
+}
+
+# Open WebUI
+{$WEBUI_HOSTNAME:openwebui.kwintes.cloud} {
+    import webui
+}
+
+# Flowise
+{$FLOWISE_HOSTNAME:flowise.kwintes.cloud} {
+    import flowise
+}
+
+# Grafana
+grafana.{$DOMAIN_NAME:kwintes.cloud} {
+    import grafana
+}
+
+# Prometheus
+prometheus.{$DOMAIN_NAME:kwintes.cloud} {
+    import prometheus
+}
+
+# Qdrant
+qdrant.{$DOMAIN_NAME:kwintes.cloud} {
+    import qdrant
+}
+
+# Ollama
+{$OLLAMA_HOSTNAME:ollama.kwintes.cloud} {
+    reverse_proxy ollama:11434
+}
+
 # Created and maintained by Z4Y

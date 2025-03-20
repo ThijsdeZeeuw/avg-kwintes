@@ -17,7 +17,6 @@ This document describes all the environment variables used in the Local AI Stack
 | `FLOWISE_HOSTNAME` | Full hostname for Flowise | `flowise.kwintes.cloud` |
 | `SUPABASE_HOSTNAME` | Full hostname for Supabase | `supabase.kwintes.cloud` |
 | `OLLAMA_HOSTNAME` | Full hostname for Ollama | `ollama.kwintes.cloud` |
-| `SEARXNG_HOSTNAME` | Full hostname for SearXNG | `searxng.kwintes.cloud` |
 | `LETSENCRYPT_EMAIL` | Email for Let's Encrypt certificates | `tddezeeuw@gmail.com` |
 
 ### n8n Configuration
@@ -91,7 +90,6 @@ To ensure consistency and avoid port conflicts, we've configured each service to
 | Prometheus | 9090 | |
 | Qdrant | 6333 | |
 | Ollama | 11434 | |
-| SearXNG | 8080 | |
 | Caddy | 80/443 | Reverse proxy for all services |
 
 ## Advanced Configuration
