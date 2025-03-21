@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
+         :root {
             --primary: #3b82f6;
             --primary-dark: #2563eb;
             --secondary: #6366f1;
@@ -27,7 +28,7 @@
         }
         
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: "Inter", sans-serif;
             background-color: var(--light);
             color: var(--dark);
             line-height: 1.6;
@@ -43,7 +44,7 @@
             text-align: center;
             margin-bottom: 2.5rem;
             padding-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
         }
         
         h1 {
@@ -109,8 +110,8 @@
         
         .card-footer {
             padding: 1.25rem;
-            background-color: rgba(0,0,0,0.02);
-            border-top: 1px solid rgba(0,0,0,0.05);
+            background-color: rgba(0, 0, 0, 0.02);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
         }
         
         .btn {
@@ -172,31 +173,30 @@
             color: var(--gray);
             font-size: 0.875rem;
             padding-top: 1.5rem;
-            border-top: 1px solid rgba(0,0,0,0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
         }
         
         @media (max-width: 768px) {
             .services-grid {
                 grid-template-columns: 1fr;
             }
-            
             h1 {
                 font-size: 2rem;
             }
-            
             .container {
                 padding: 1rem;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
             <h1>Kwintes.cloud AI Services</h1>
             <p class="subtitle">Your centralized AI automation platform</p>
         </header>
-        
+
         <div class="services-grid">
             <!-- n8n -->
             <div class="service-card automation">
@@ -212,10 +212,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://n8n.${DOMAIN_NAME}" class="btn">Access n8n</a>
+                    <a href="https://n8n.kwintes.cloud" class="btn">Access n8n</a>
                 </div>
             </div>
-            
+
             <!-- Open WebUI -->
             <div class="service-card ai">
                 <div class="card-header">
@@ -230,10 +230,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://openwebui.${DOMAIN_NAME}" class="btn">Access WebUI</a>
+                    <a href="https://openwebui.kwintes.cloud" class="btn">Access WebUI</a>
                 </div>
             </div>
-            
+
             <!-- Flowise -->
             <div class="service-card ai">
                 <div class="card-header">
@@ -248,10 +248,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://flowise.${DOMAIN_NAME}" class="btn">Access Flowise</a>
+                    <a href="https://flowise.kwintes.cloud" class="btn">Access Flowise</a>
                 </div>
             </div>
-            
+
             <!-- Supabase -->
             <div class="service-card database">
                 <div class="card-header">
@@ -266,10 +266,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://supabase.${DOMAIN_NAME}" class="btn">Access Supabase</a>
+                    <a href="https://supabase.kwintes.cloud" class="btn">Access Supabase</a>
                 </div>
             </div>
-            
+
             <!-- Qdrant -->
             <div class="service-card database">
                 <div class="card-header">
@@ -284,10 +284,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://qdrant.${DOMAIN_NAME}" class="btn">Access Qdrant</a>
+                    <a href="https://qdrant.kwintes.cloud" class="btn">Access Qdrant</a>
                 </div>
             </div>
-            
+
             <!-- Grafana -->
             <div class="service-card monitoring">
                 <div class="card-header">
@@ -302,10 +302,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://grafana.${DOMAIN_NAME}" class="btn">Access Grafana</a>
+                    <a href="https://grafana.kwintes.cloud" class="btn">Access Grafana</a>
                 </div>
             </div>
-            
+
             <!-- Prometheus -->
             <div class="service-card monitoring">
                 <div class="card-header">
@@ -320,10 +320,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://prometheus.${DOMAIN_NAME}" class="btn">Access Prometheus</a>
+                    <a href="https://prometheus.kwintes.cloud" class="btn">Access Prometheus</a>
                 </div>
             </div>
-            
+
             <!-- Ollama -->
             <div class="service-card ai">
                 <div class="card-header">
@@ -338,10 +338,10 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://ollama.${DOMAIN_NAME}" class="btn">Access Ollama API</a>
+                    <a href="https://ollama.kwintes.cloud" class="btn">Access Ollama API</a>
                 </div>
             </div>
-            
+
             <!-- SearXNG -->
             <div class="service-card search">
                 <div class="card-header">
@@ -349,23 +349,29 @@
                     <p>Privacy Search Engine</p>
                 </div>
                 <div class="card-body">
-                    <p>Self-hosted, privacy-focused metasearch engine that doesn't track your searches or share your data.</p>
+                    <p>Self-hosted, privacy-focused metasearch engine that does not track your searches or share your data.</p>
                     <div class="status">
                         <span class="status-indicator"></span>
                         <span>Running</span>
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="https://searxng.${DOMAIN_NAME}" class="btn">Access SearXNG</a>
+                    <a href="https://searxng.kwintes.cloud" class="btn">Access SearXNG</a>
                 </div>
             </div>
         </div>
-        
+
         <footer>
-            <p>&copy; 2025 ${DOMAIN_NAME} - Local AI Stack. Created and maintained by Z4Y.</p>
+            <p>&copy; 2025 kwintes.cloud - Local AI Stack. Created and maintained by Z4Y.</p>
         </footer>
     </div>
-    
-    <script src="status.js"></script>
+
+    <script>
+        // Replace placeholders with actual values
+        document.querySelectorAll('a[href*="${DOMAIN_NAME}"]').forEach(link => {
+            link.href = link.href.replace('${DOMAIN_NAME}', 'kwintes.cloud');
+        });
+    </script>
 </body>
-</html> 
+
+</html>

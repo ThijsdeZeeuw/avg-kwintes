@@ -17,6 +17,8 @@ import sys
 import secrets
 import string
 import re
+import random
+import socket
 
 def generate_random_string(length=32):
     """Generate a random string of specified length."""
@@ -375,16 +377,52 @@ def check_docker_compose():
             sys.exit(1)
 
 def stop_existing_containers():
-    """Stop and remove existing containers for our unified project ('localai')."""
-    print("Stopping and removing existing containers for the unified project 'localai'...")
-    docker_compose_cmd = check_docker_compose()
-    cmd = docker_compose_cmd + [
-        "-p", "localai",
-        "-f", "docker-compose.yml",
-        "-f", "supabase/docker/docker-compose.yml",
-        "down"
-    ]
-    run_command(cmd)
+    """Stop any existing containers."""
+    print("Stopping any existing containers...")
+    
+    # Try to stop containers using the basic docker-compose file first
+    try:
+        docker_compose_cmd = check_docker_compose()
+        base_cmd = docker_compose_cmd + ["-p", "localai", "-f", "docker-compose.yml", "down"]
+        print("Stopping main containers...")
+        run_command(base_cmd)
+        print("Successfully stopped main containers")
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: Error stopping main containers: {e}")
+        print("Continuing with startup process anyway...")
+    
+    # Try to stop Supabase containers separately if they exist
+    if os.path.exists("supabase/docker/docker-compose.yml"):
+        try:
+            docker_compose_cmd = check_docker_compose()
+            supabase_cmd = docker_compose_cmd + ["-p", "supabase", "-f", "supabase/docker/docker-compose.yml", "down"]
+            print("Stopping Supabase containers...")
+            run_command(supabase_cmd)
+            print("Successfully stopped Supabase containers")
+        except subprocess.CalledProcessError as e:
+            print(f"Warning: Error stopping Supabase containers: {e}")
+            print("Continuing with startup process anyway...")
+    else:
+        print("Supabase directory not found, skipping its shutdown...")
+    
+    # Ensure all containers are stopped by checking for any with our project name
+    try:
+        print("Checking for any remaining containers...")
+        ps_cmd = ["docker", "ps", "-a", "--filter", "name=localai", "--format", "{{.Names}}"]
+        result = subprocess.run(ps_cmd, capture_output=True, text=True, check=False)
+        if result.stdout.strip():
+            print(f"Found remaining containers: {result.stdout.strip()}")
+            print("Attempting to force stop them...")
+            for container in result.stdout.strip().split('\n'):
+                if container:
+                    try:
+                        subprocess.run(["docker", "rm", "-f", container.strip()], check=False)
+                    except Exception as e:
+                        print(f"Warning: Could not remove container {container}: {e}")
+    except Exception as e:
+        print(f"Warning: Error checking for remaining containers: {e}")
+        
+    print("Container shutdown process completed, proceeding with startup...")
 
 def start_supabase():
     """Start the Supabase services (using its compose file)."""
@@ -397,200 +435,218 @@ def start_supabase():
     ]
     run_command(cmd)
 
-def start_local_ai(profile=None):
-    """Start all local AI services using docker-compose"""
-    print(f"Starting Local AI stack with profile: {profile or 'default'}")
-    check_docker_compose()
+def start_local_ai(profile="cpu"):
+    """Start the Local AI stack with the specified profile."""
+    print(f"Starting Local AI stack with {profile.upper()} profile...")
     
-    # Create n8n backup directories if they don't exist
+    # Ensure backup directories exist for n8n
     os.makedirs("n8n/backup/workflows", exist_ok=True)
     os.makedirs("n8n/backup/credentials", exist_ok=True)
-    
-    # Create shared data directory
+
+    # Create necessary directories and settings
     os.makedirs("shared", exist_ok=True)
     
-    # Check and fix docker-compose.yml for SearXNG if needed
-    generate_searxng_secret_key()
-    
-    # First stop running containers
-    print("Stopping any existing containers...")
-    stop_existing_containers()
-    
-    # Detect if we're on Ubuntu 24.04
-    is_ubuntu_24_04 = False
-    try:
-        with open('/etc/os-release', 'r') as f:
-            if 'VERSION_ID="24.04"' in f.read() and 'NAME="Ubuntu"' in f.read():
-                is_ubuntu_24_04 = True
-    except FileNotFoundError:
-        pass
-    
-    if USE_DOCKER_COMPOSE_PLUGIN:
-        if profile:
-            cmd = ["docker", "compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
-        else:
-            cmd = ["docker", "compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
-    elif is_ubuntu_24_04:
-        # Use standalone docker-compose on Ubuntu 24.04
-        if profile:
-            cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
-        else:
-            cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
+    # Check if SearXNG directory exists
+    searxng_exists = os.path.exists("searxng")
+    if searxng_exists:
+        print("SearXNG directory found - configuring...")
+        generate_searxng_secret_key()
+        check_and_fix_docker_compose_for_searxng()
     else:
-        if profile:
-            cmd = ["docker-compose", "-p", "localai", "--profile", profile, "-f", "docker-compose.yml", "up", "-d"]
-        else:
-            cmd = ["docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d"]
+        print("SearXNG directory not found - skipping its configuration")
     
-    print(f"Running command: {' '.join(cmd)}")
+    docker_compose_cmd = check_docker_compose()
+    
+    # Start services up using the appropriate docker compose command
+    print("Starting services...")
     try:
-        run_command(cmd)
-    except subprocess.CalledProcessError as e:
-        print(f"Warning: Container startup had errors but continuing anyway: {str(e)}")
-        # Check if n8n is running despite the error
-        check_cmd = ["docker", "ps", "--filter", "name=n8n", "--format", "{{.Names}}"]
-        result = subprocess.run(check_cmd, capture_output=True, text=True)
-        if "n8n" not in result.stdout:
-            print("Error: n8n container failed to start. Check docker logs for details.")
-            # Try to start just the n8n container
-            try:
-                if USE_DOCKER_COMPOSE_PLUGIN:
-                    retry_cmd = ["docker", "compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
-                elif is_ubuntu_24_04:
-                    retry_cmd = ["/usr/local/bin/docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
-                else:
-                    retry_cmd = ["docker-compose", "-p", "localai", "-f", "docker-compose.yml", "up", "-d", "n8n"]
-                print(f"Trying to start n8n container separately: {' '.join(retry_cmd)}")
-                subprocess.run(retry_cmd, check=True)
-            except subprocess.CalledProcessError:
-                print("Failed to start n8n container separately.")
+        cmd = docker_compose_cmd + [
+            "-p", "localai",
+            "-f", "docker-compose.yml",
+            "--profile", profile,
+            "up", "-d"
+        ]
+        
+        # Run the command
+        print(f"Running command: {' '.join(cmd)}")
+        
+        # Run with shell=True on Windows to handle potential path issues
+        if platform.system() == 'Windows':
+            process = subprocess.run(
+                " ".join(cmd), 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE,
+                shell=True,
+                text=True,
+                check=False
+            )
         else:
-            print("n8n container is running despite errors in other services.")
-
-    print("\nLocal AI stack started successfully.")
-    print("\nAccess the services at:")
-    print("- n8n: http://localhost:5678")
-    print("- Flowise: http://localhost:3001")
-    print("- OpenWebUI: http://localhost:8080")
-    print("- Qdrant: http://localhost:6333")
-    print("- Prometheus: http://localhost:9090")
-    print("- Grafana: http://localhost:3000")
-    print("- Ollama: http://localhost:11434")
+            process = subprocess.run(
+                cmd, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True,
+                check=False
+            )
+        
+        # Check if there were any errors
+        if process.returncode != 0:
+            print(f"Warning: Docker Compose returned non-zero exit code: {process.returncode}")
+            print("Error output:")
+            print(process.stderr)
+            
+            # Check if it's just n8n-import failing, which is expected if SearXNG is removed
+            if "n8n-import" in process.stderr and "exited with code 1" in process.stderr:
+                print("Note: n8n-import service failed, but this might be expected if SearXNG was removed.")
+                print("Checking if n8n is still running...")
+                
+                # Give containers a moment to start up
+                time.sleep(5)
+                
+                # Check if n8n container is running despite the error
+                check_cmd = ["docker", "ps", "--filter", "name=n8n", "--format", "{{.Names}}"]
+                result = subprocess.run(check_cmd, stdout=subprocess.PIPE, text=True, check=False)
+                
+                if "n8n" in result.stdout:
+                    print("Good news! The n8n container is running. The stack should be operational.")
+                else:
+                    print("Warning: n8n container is not running. The stack may not be fully operational.")
+                    print("Attempting to start services without the n8n-import service...")
+                    
+                    # Try starting again without the n8n-import service (it will be skipped because of its profile)
+                    retry_cmd = docker_compose_cmd + [
+                        "-p", "localai",
+                        "-f", "docker-compose.yml",
+                        "--profile", profile,
+                        "up", "-d"
+                    ]
+                    subprocess.run(retry_cmd, check=False)
+            else:
+                print("There was an error starting some services. Check the error messages above.")
+        else:
+            print("All services started successfully!")
+    except Exception as e:
+        print(f"Error starting services: {e}")
+        print("Some services may not be running. Check Docker status.")
+    
+    # Try to load the .env file to get current environment variables
+    try:
+        load_env_file()
+    except Exception as e:
+        print(f"Warning: Could not load environment variables: {e}")
+    
+    # Print access URLs
+    try:
+        print_access_urls()
+    except Exception as e:
+        print(f"Warning: Could not print access URLs: {e}")
+        print("Please check your Docker containers status with 'docker ps'")
 
 def generate_searxng_secret_key():
-    """Generate a random secret key for SearXNG if it doesn't exist"""
-    # Skip if SearXNG is no longer in use
-    if not os.path.exists('searxng'):
-        print("SearXNG not found, skipping secret key generation")
+    """Generate a secret key for SearXNG if one doesn't exist."""
+    # Skip if SearXNG directory doesn't exist
+    if not os.path.exists("searxng"):
+        print("SearXNG directory not found, skipping secret key generation.")
         return
         
-    searxng_dir = os.path.join(os.getcwd(), 'searxng')
-    os.makedirs(searxng_dir, exist_ok=True)
-    settings_base_path = os.path.join(searxng_dir, 'settings-base.yml')
-    settings_path = os.path.join(searxng_dir, 'settings.yml')
+    print("Checking SearXNG secret key...")
+    settings_path = "searxng/settings.yml"
+    secret_key_path = "searxng/secret_key"
     
+    # Create settings file if it doesn't exist
     if not os.path.exists(settings_path):
-        print("Generating SearXNG settings.yml with secure secret key...")
-        
-        # Default base settings if settings-base.yml doesn't exist
-        default_settings = """# see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
-use_default_settings: true
-server:
-  # base_url is defined in the SEARXNG_BASE_URL environment variable, see .env and docker-compose.yml
-  secret_key: "ultrasecretkey"  # change this!
-  limiter: false
-  image_proxy: true
-ui:
-  static_use_hash: true
-redis:
-  url: redis://redis:6379/0
+        print("Creating default SearXNG settings file...")
+        os.makedirs("searxng", exist_ok=True)
+        with open(settings_path, "w") as f:
+            f.write("""general:
+    instance_name: "SearXNG"
+    privacypolicy_url: false
+    donation_url: false
+    enable_metrics: true
+
 search:
-    formats:
-        - html
-        - json
-"""
-        
-        if not os.path.exists(settings_base_path):
-            with open(settings_base_path, 'w') as f:
-                f.write(default_settings)
-        
-        # Read the base settings
-        with open(settings_base_path, 'r') as f:
-            settings_content = f.read()
-        
-        # Generate a secure random key
-        secret_key = generate_random_string(32)
-        
-        # Replace the placeholder with the secure key
-        settings_content = settings_content.replace('ultrasecretkey', secret_key)
-        
-        # Write the new settings file
-        with open(settings_path, 'w') as f:
-            f.write(settings_content)
-        
-        print("SearXNG settings.yml created with secure secret key.")
+    safe_search: 0
+    autocomplete: ""
+
+server:
+    secret_key: "{secret_key}"  # Will be replaced with actual key
+    limiter: false
+    image_proxy: true
+
+ui:
+    static_use_hash: true
+    default_locale: "en"
+    default_theme: "simple"
+    theme_args:
+        simple_style: "dark"
+
+redis:
+    url: redis://redis:6379/0
+""")
     
-    # Create uwsgi.ini if it doesn't exist
-    uwsgi_path = os.path.join(searxng_dir, 'uwsgi.ini')
-    if not os.path.exists(uwsgi_path):
-        uwsgi_content = """[uwsgi]
-# disable logging for privacy
-disable-logging = true
-
-# Number of workers (usually CPU count)
-workers = %s
-
-# Number of threads per worker
-threads = %s
-
-master = true
-module = searx.webapp
-"""
-        uwsgi_workers = os.environ.get("SEARXNG_UWSGI_WORKERS", "4")
-        uwsgi_threads = os.environ.get("SEARXNG_UWSGI_THREADS", "4")
+    # Generate secret key if it doesn't exist
+    if not os.path.exists(secret_key_path):
+        print("Generating new SearXNG secret key...")
+        secret_key = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(32))
+        with open(secret_key_path, "w") as f:
+            f.write(secret_key)
+    else:
+        with open(secret_key_path, "r") as f:
+            secret_key = f.read().strip()
+    
+    # Update settings file with secret key
+    if os.path.exists(settings_path):
+        with open(settings_path, "r") as f:
+            settings = f.read()
         
-        with open(uwsgi_path, 'w') as f:
-            f.write(uwsgi_content % (uwsgi_workers, uwsgi_threads))
+        settings = settings.replace("{secret_key}", secret_key)
+        
+        with open(settings_path, "w") as f:
+            f.write(settings)
+    
+    print("SearXNG secret key setup complete.")
 
 def check_and_fix_docker_compose_for_searxng():
-    """Check and fix the docker-compose.yml file for SearXNG service"""
-    # Skip if SearXNG is no longer in use
-    if not os.path.exists('searxng'):
-        print("SearXNG not found, skipping docker-compose check")
+    """Check and fix the docker-compose.yml file for SearXNG configuration."""
+    # Skip if SearXNG directory doesn't exist
+    if not os.path.exists("searxng"):
+        print("SearXNG directory not found, skipping docker-compose check.")
         return
         
-    # Check if the docker-compose.yml file exists
-    if not os.path.exists('docker-compose.yml'):
-        print("docker-compose.yml file not found! Please make sure it exists in the current directory.")
-        return
-
-    # Read the docker-compose.yml file
-    with open('docker-compose.yml', 'r') as f:
-        docker_compose_content = f.read()
-
-    # Check if the searxng service is present
-    if 'container_name: searxng' not in docker_compose_content:
-        print("SearXNG service not found in docker-compose.yml, no need to fix.")
-        return
-
-    # Check if the fix is already applied
-    if "uwsgi.ini:/etc/uwsgi/searxng.ini:ro" in docker_compose_content:
-        print("SearXNG docker-compose configuration already fixed.")
-        return
-
-    print("Fixing SearXNG configuration in docker-compose.yml...")
-
-    # Fix the volumes section of the searxng service
-    pattern = r'(searxng:\s+.*?volumes:\s+.*?- \./searxng:/etc/searxng:rw)(\s+.*?environment:)'
-    replacement = r'\1\n      - ./searxng/uwsgi.ini:/etc/uwsgi/searxng.ini:ro\2'
+    print("Checking docker-compose.yml for SearXNG configuration...")
     
-    fixed_content = re.sub(pattern, replacement, docker_compose_content, flags=re.DOTALL)
-
-    # Write the fixed content back to the file
-    with open('docker-compose.yml', 'w') as f:
-        f.write(fixed_content)
-
-    print("SearXNG configuration in docker-compose.yml has been fixed.")
+    docker_compose_path = "docker-compose.yml"
+    
+    if not os.path.exists(docker_compose_path):
+        print(f"Warning: {docker_compose_path} not found. Cannot check SearXNG configuration.")
+        return
+    
+    # Read the docker-compose.yml file
+    with open(docker_compose_path, "r") as f:
+        docker_compose = f.read()
+    
+    # Check if SearXNG service is defined
+    if "searxng:" not in docker_compose:
+        print("SearXNG service not found in docker-compose.yml. No changes needed.")
+        return
+    
+    # Check if uwsgi.ini volume is properly configured
+    if "- ./searxng/uwsgi.ini:/etc/uwsgi/searxng.ini:ro" not in docker_compose:
+        # Fix the volume configuration
+        docker_compose = re.sub(
+            r'(volumes:.*?\n\s+- \./searxng:/etc/searxng:rw\n)',
+            r'\1      - ./searxng/uwsgi.ini:/etc/uwsgi/searxng.ini:ro\n',
+            docker_compose,
+            flags=re.DOTALL
+        )
+        
+        # Write the updated file
+        with open(docker_compose_path, "w") as f:
+            f.write(docker_compose)
+        
+        print("Updated docker-compose.yml with proper SearXNG uwsgi.ini volume configuration.")
+    else:
+        print("SearXNG configuration in docker-compose.yml is correct.")
 
 def create_data_directories():
     """Create necessary data directories for mounted volumes."""
@@ -609,6 +665,88 @@ def create_data_directories():
             os.makedirs(full_path, exist_ok=True)
     
     print(f"Created data directories in {data_dir}")
+
+def load_env_file():
+    """Load environment variables from .env file."""
+    if not os.path.exists('.env'):
+        print("Warning: .env file not found. Using default environment variables.")
+        return
+    
+    try:
+        print("Loading environment variables from .env file...")
+        with open('.env', 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+        print("Environment variables loaded successfully.")
+    except Exception as e:
+        print(f"Error loading environment variables: {e}")
+        raise
+
+def print_access_urls():
+    """Print URLs for accessing services."""
+    domain = os.environ.get('DOMAIN_NAME', 'kwintes.cloud')
+    ip_address = "localhost"  # Default for local development
+    
+    # Try to get the server's public IP if possible
+    try:
+        # This is a simple way to get the server's IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip_address = s.getsockname()[0]
+        s.close()
+    except:
+        pass
+    
+    print("\n=== Access URLs ===")
+    print(f"Dashboard: http://{ip_address}")
+    print(f"n8n: http://{ip_address}:5678 or https://n8n.{domain}")
+    print(f"WebUI: http://{ip_address}:8080 or https://openwebui.{domain}")
+    print(f"Flowise: http://{ip_address}:3001 or https://flowise.{domain}")
+    print(f"Supabase API: http://{ip_address}:8000 or https://supabase.{domain}")
+    print(f"Supabase Studio: http://{ip_address}:54321 or https://studio.supabase.{domain}")
+    print(f"Grafana: http://{ip_address}:3000 or https://grafana.{domain}")
+    print(f"Prometheus: http://{ip_address}:9090 or https://prometheus.{domain}")
+    print(f"Ollama API: http://{ip_address}:11434 or https://ollama.{domain}")
+    print(f"Qdrant API: http://{ip_address}:6333 or https://qdrant.{domain}")
+    
+    # Only show SearXNG if it exists
+    if os.path.exists("searxng"):
+        print(f"SearXNG: http://{ip_address}:8088 or https://searxng.{domain}")
+    
+    print("\nFor more details, check the generated secrets.txt file.")
+    print("All services should be accessible shortly. Some may take a few minutes to initialize.")
+
+def check_docker_running():
+    """Check if Docker is running and available."""
+    try:
+        # Simple check - try to run 'docker info'
+        result = subprocess.run(
+            ["docker", "info"], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            check=False
+        )
+        
+        if result.returncode != 0:
+            print("ERROR: Docker is not running or not accessible.")
+            print("Please ensure Docker Desktop is running (on Windows/Mac)")
+            print("or the Docker daemon is started (on Linux).")
+            
+            if platform.system() == 'Windows':
+                print("\nOn Windows, make sure:")
+                print("1. Docker Desktop is running")
+                print("2. You're running this script with administrator privileges")
+                print("   (Right-click Command Prompt/PowerShell and select 'Run as administrator')")
+            
+            return False
+        return True
+    except Exception as e:
+        print(f"ERROR: Could not check Docker status: {e}")
+        print("Please ensure Docker is installed and running.")
+        return False
 
 def main():
     parser = argparse.ArgumentParser(description='Start the local AI and Supabase services.')
@@ -639,6 +777,11 @@ def main():
     if proceed != 'y':
         print("Exiting without starting services. Run this script again when ready.")
         sys.exit(0)
+    
+    # Check if Docker is running before proceeding
+    if not check_docker_running():
+        print("Docker is not available. Please start Docker and try again.")
+        sys.exit(1)
     
     # Initialize monitoring
     initialize_monitoring()
