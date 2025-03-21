@@ -330,7 +330,7 @@ def check_docker_compose():
         with open('/etc/os-release', 'r') as f:
             os_info = f.read()
             if 'VERSION="24.04"' in os_info and 'Ubuntu' in os_info:
-                print("Detected Ubuntu 24.04 - using docker-compose...")
+                print("Detected Ubuntu 24.04 - using standalone docker-compose...")
                 # For Ubuntu 24.04, directly use docker-compose if it exists
                 if os.path.exists('/usr/local/bin/docker-compose'):
                     return ['/usr/local/bin/docker-compose']
@@ -621,7 +621,7 @@ def check_and_fix_docker_compose_for_searxng():
         print(f"Warning: {docker_compose_path} not found. Cannot check SearXNG configuration.")
         return
     
-    # Read the docker-compose.yml file
+        # Read the docker-compose.yml file
     with open(docker_compose_path, "r") as f:
         docker_compose = f.read()
     
@@ -732,14 +732,18 @@ def check_docker_running():
         
         if result.returncode != 0:
             print("ERROR: Docker is not running or not accessible.")
-            print("Please ensure Docker Desktop is running (on Windows/Mac)")
-            print("or the Docker daemon is started (on Linux).")
+            print("Please ensure Docker is installed and running.")
             
             if platform.system() == 'Windows':
                 print("\nOn Windows, make sure:")
                 print("1. Docker Desktop is running")
                 print("2. You're running this script with administrator privileges")
-                print("   (Right-click Command Prompt/PowerShell and select 'Run as administrator')")
+            else:
+                print("\nOn Ubuntu 24.04, try:")
+                print("1. sudo systemctl start docker")
+                print("2. sudo systemctl enable docker")
+                print("3. sudo usermod -aG docker $USER")
+                print("4. newgrp docker")
             
             return False
         return True

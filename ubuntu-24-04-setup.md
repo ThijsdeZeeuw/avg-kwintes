@@ -427,8 +427,7 @@ n8n:
     # These settings ensure external API access works properly
     - N8N_SECURE_COOKIE=false 
     - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
-    - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/
-  volumes:
+    - WEBHOOK_URL=https://${SUBDOMAIN:-n8n}.${DOMAIN_NAME:-kwintes.cloud}/volumes:
     - n8n_storage:/home/node/.n8n
     - ./n8n/backup:/backup
     - ./shared:/data/shared

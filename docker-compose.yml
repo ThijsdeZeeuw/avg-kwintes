@@ -1,3 +1,5 @@
+version: "3.8"
+
 volumes:
   n8n_storage:
   ollama_storage:
@@ -33,6 +35,12 @@ x-n8n: &service-n8n
     - NODE_FUNCTION_ALLOW_EXTERNAL=*
     - N8N_SECURE_COOKIE=false
     - N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN=true
+  deploy:
+    resources:
+      limits:
+        memory: 2G
+      reservations:
+        memory: 1G
 
 x-ollama: &service-ollama
   image: ollama/ollama:latest
@@ -44,6 +52,12 @@ x-ollama: &service-ollama
     - ollama_storage:/root/.ollama
   networks:
     - monitoring
+  deploy:
+    resources:
+      limits:
+        memory: 8G
+      reservations:
+        memory: 4G
 
 x-init-ollama: &init-ollama
   image: ollama/ollama:latest
@@ -68,23 +82,27 @@ services:
     restart: unless-stopped
     container_name: flowise
     environment:
-        - PORT=3001
-        - USERNAME=${FLOWISE_USERNAME:-admin}
-        - PASSWORD=${FLOWISE_PASSWORD:-password}
-        - ENABLE_METRICS=${ENABLE_METRICS:-true}
-        - METRICS_PROVIDER=${METRICS_PROVIDER:-prometheus}
-        - METRICS_PORT=9090
-        - METRICS_INCLUDE_NODE_METRICS=${METRICS_INCLUDE_NODE_METRICS:-true}
-        - TZ=${TZ:-Europe/Amsterdam}
+      - PORT=3001
+      - USERNAME=${FLOWISE_USERNAME:-admin}
+      - PASSWORD=${FLOWISE_PASSWORD:-password}
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      - METRICS_PROVIDER=${METRICS_PROVIDER:-prometheus}
+      - METRICS_PORT=9090
+      - METRICS_INCLUDE_NODE_METRICS=${METRICS_INCLUDE_NODE_METRICS:-true}
+      - TZ=${TZ:-Europe/Amsterdam}
     ports:
-        - 3001:3001
-    extra_hosts:
-      - "host.docker.internal:host-gateway"        
+      - 3001:3001
     volumes:
-        - ~/.flowise:/root/.flowise
+      - ~/.flowise:/root/.flowise
     entrypoint: /bin/sh -c "sleep 3; flowise start"
     networks:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -92,36 +110,35 @@ services:
     container_name: open-webui
     ports:
       - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - open-webui:/app/backend/data
     networks:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   n8n:
-    # Uses the base n8n configuration from x-n8n service
     <<: *service-n8n
     container_name: n8n
     restart: unless-stopped
     ports:
-      - 5678:5678  # Using port 5678 to avoid conflict with Supabase
+      - 5678:5678
     networks:
       - monitoring
-    # Removed dependency on n8n-import to allow stack to start even if import fails
 
   n8n-import:
-    # Add a one-time initialization container for n8n
-    # This is used to import initial workflows and credentials
     image: n8nio/n8n:latest
-    profiles: ["init"]  # Only run this when explicitly specified with --profile init
+    profiles: ["init"]
     container_name: n8n-import
     restart: "no"
     entrypoint: /bin/sh
     command:
       - "-c"
       - |
-        # Import credentials and workflows if available, but don't fail if they don't exist
         mkdir -p /backup/credentials /backup/workflows
         echo "Waiting for n8n to be ready..."
         sleep 10
@@ -144,6 +161,12 @@ services:
       - qdrant_storage:/qdrant/storage
     networks:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
 
   caddy:
     container_name: caddy
@@ -163,7 +186,7 @@ services:
       - OLLAMA_HOSTNAME=${OLLAMA_HOSTNAME:-"ollama.${DOMAIN_NAME:-kwintes.cloud}"}
       - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-"supabase.${DOMAIN_NAME:-kwintes.cloud}"}
       - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-"searxng.${DOMAIN_NAME:-kwintes.cloud}"}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-tddezeeuw@gmail.com}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@kwintes.cloud}
       - TZ=${TZ:-Europe/Amsterdam}
       - DOMAIN_NAME=${DOMAIN_NAME:-kwintes.cloud}
     cap_drop:
@@ -173,10 +196,16 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "1m"
-        max-file: "1"
+        max-size: "10m"
+        max-file: "3"
     networks:
       - monitoring
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   redis:
     container_name: redis
@@ -291,5 +320,9 @@ services:
 networks:
   monitoring:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
 
 # Created and maintained by Z4Y
